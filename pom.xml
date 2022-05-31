@@ -13,14 +13,16 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <simudyne.version>2.5.0</simudyne.version>
+        <jodatime.version>2.10.1</jodatime.version>
+        <junit.version>5.3.2</junit.version>
     </properties>
 
     <repositories>
         <repository>
-			<id>simudyne.jfrog.io</id>
-			<name>simudyne.jfrog.io</name>
-			<url>https://simudyne.jfrog.io/simudyne/releases</url>
-		</repository>
+            <id>simudyne.jfrog.io</id>
+            <name>simudyne.jfrog.io</name>
+            <url>https://simudyne.jfrog.io/simudyne/releases</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -68,10 +70,15 @@
         <!--test dependencies-->
 
         <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <version>4.12</version>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit.version}</version>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>joda-time</groupId>
+            <artifactId>joda-time</artifactId>
+            <version>${jodatime.version}</version>
         </dependency>
 
         <dependency>
@@ -83,16 +90,73 @@
 
     </dependencies>
 
-	<build>
+    <build>
         <plugins>
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>exec-maven-plugin</artifactId>
-				<version>1.2.1</version>
-				<configuration>
-					<mainClass>Main</mainClass>
-				</configuration>
-			</plugin>
-        </plugins> 
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.2.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <shadedArtifactAttached>true</shadedArtifactAttached>
+                            <shadedClassifierName>allinone</shadedClassifierName>
+                            <artifactSet>
+                                <includes>
+                                    <include>*:*</include>
+                                </includes>
+                            </artifactSet>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
+                                    <resource>reference.conf</resource>
+                                </transformer>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <main-Class>Main</main-Class>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>1.2.1</version>
+                <configuration>
+                    <mainClass>Main</mainClass>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>simudyne</groupId>
+                <artifactId>simudyne-maven-plugin</artifactId>
+                <version>1.0-SNAPSHOT</version>
+                <configuration>
+                    <overwrite>false</overwrite>
+                </configuration>
+            </plugin>
+        </plugins>
+        <resources>
+            <resource>
+                <directory>.</directory>
+                <includes>
+                    <include>simudyneSDK.properties</include>
+                    <include>simudyne_cesc@cesccanet.com_2022-04-26.license</include>
+                </includes>
+            </resource>
+        </resources>
     </build>
 </project>

@@ -3,7 +3,6 @@ package org.example.models.schelling;
 import simudyne.core.abm.Action;
 import simudyne.core.abm.Agent;
 import simudyne.core.annotations.Variable;
-
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 import java.util.*;

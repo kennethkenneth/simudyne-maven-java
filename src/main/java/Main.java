@@ -9,6 +9,7 @@ import org.example.models.schelling.SchellingModel;
 import org.example.models.tokyo.TokyoModel;
 import org.example.models.trading.TradingModel;
 import org.example.models.volatilityModel.VolatilityModel;
+import org.example.models.kaligotla_macal_blockchain.BlockchainModel;
 import simudyne.nexus.Server;
 
 public class Main {
@@ -24,6 +25,7 @@ public class Main {
     Server.register("Schelling Segregation Model", SchellingModel.class);
     Server.register("Forest Fire Model", ForestFireModel.class);
     Server.register("Gai-Kapadia Model", GaiKapadiaModel.class);
+    Server.register("Kaligotla-Macal Blockchain Model", BlockchainModel.class);
 
     Server.run(args);
   }
