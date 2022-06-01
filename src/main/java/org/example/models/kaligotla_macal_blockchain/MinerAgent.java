@@ -2,8 +2,10 @@ package org.example.models.kaligotla_macal_blockchain;
 import simudyne.core.abm.Action;
 import simudyne.core.abm.Agent;
 
+import java.util.ArrayList;
+
 public class MinerAgent extends Agent<Globals> {
-    int i;  //unique identifier for an agent -- TODO: Do we need this?
+    //int i;  //unique identifier for an agent -- TODO: Do we need this?
     int w;  //agents’ current balance of currency or value
     /*
     Relative computing power of the agent. computingPower = 1,2,...N denoting the compute power
@@ -15,7 +17,9 @@ public class MinerAgent extends Agent<Globals> {
     int blockList;
     int tEndVerify;
     int strategy; // 0: LARGEST, 1: POLAR, 2: PARTITION
+
     Block nextBlockToVerify;
+    ArrayList<Block> blocksVerifiedByThisMiner;
 
     /*
         A miner agent, selects a fixed number of transactions (blocklength) from the PTQ to form a candidate block
@@ -25,9 +29,9 @@ public class MinerAgent extends Agent<Globals> {
         then the candidate block gets added to the Public Ledger.
     */
 
-    public MinerAgent()
-    {
-        nextBlockToVerify = new Block();
+    public MinerAgent(){
+        this.nextBlockToVerify= new Block();
+        this.blocksVerifiedByThisMiner = new ArrayList<>();
     }
 
     public void incVerifiedTransactionsCounter(int i)
@@ -35,35 +39,98 @@ public class MinerAgent extends Agent<Globals> {
         getLongAccumulator("numVerifiedTransactions").add(i);
     }
 
+    public static Action<MinerAgent> verifyBlocksAndInitiateValueTransfer()
+    {
+        return Action.create(MinerAgent.class, curMA -> {
+            Globals gl = curMA.getGlobals();
+            //ArrayList<Block>blocksToVerify = gl.blocksBeingVerified;
+            gl.blocksBeingVerified.forEach(block -> {
+                if (!curMA.blocksVerifiedByThisMiner.contains(block))
+                {
+                    Transaction[] trs = block.getTransactions();
+                    int nbrVerif = 0;
+                    for (int i=0;i<trs.length;i++)
+                    {
+                        if (trs[i].isVerified())
+                        {
+                            nbrVerif++;
+                        }
+                    }
+                    if (nbrVerif==trs.length)
+                    {
+                        //block.incNumAgentsVerified();
+                        block.markBlockAsVerifierBy(curMA);
+                        curMA.blocksVerifiedByThisMiner.add(block);
+                    }
+                    if (block.getNumAgentsVerified() == gl.agentsToVerifyTrans) {
+                        for (int i = 0; i < trs.length; i++)
+                        {
+                            Transaction curTran = trs[i];
+                            curMA.getLinks(Links.MarketToMarketLink.class)
+                                    .send(Messages.TransferAmount.class,
+                                            (msg, link) -> {
+                                                msg.amount = curTran.value;
+                                                msg.receiver = curTran.agentJ;
+                                            });
+                            curMA.getLinks(Links.MarketToMarketLink.class)
+                                    .send(Messages.SubstractAmount.class,
+                                            (msg, link) -> {
+                                                msg.amount = curTran.value;
+                                                msg.sender = curTran.agentI;
+                                            });
+                        }
+                        block.payGasToMiners();
+                        block.markBlockAsVerified();
+                        //gl.blocksBeingVerified.remove(block);  //////////////
+                    }
+                }
+            });
+            return;
+        });
+    }
+
+    public static Action<MinerAgent> sumETHValue()
+    {
+        return Action.create(MinerAgent.class, currMA -> {
+            Globals gl = currMA.getGlobals();
+            gl.totalETHValueInMiners+=currMA.w;
+            return;
+        });
+    }
+
+    public static Action<MinerAgent> sendGasToMiners()
+    {
+        return Action.create(MinerAgent.class, curMA -> {
+                    Globals gl = curMA.getGlobals();
+                    gl.blocksBeingVerified.forEach(bl -> {
+                        curMA.w += bl.getTotalGas();
+                    });
+                    return;
+                }
+        );
+    }
+
     public static Action<MinerAgent> selectNextBlockToVerify(TransactionListPTQ ptq, int blockLength) {
         return Action.create(MinerAgent.class, curMA -> {
-            //  System.out.println("100000 " + blockLength + " " + ptq.getQueueLength());
-            //  System.out.println("100001");
             Transaction t;
             int gasTotal = 0;
-            //System.out.println("100002");
             if (ptq.getQueueLength()>=blockLength) {
-                System.out.println("200000");
-                for (int i = 0; i <= blockLength; i++) {
+                for (int i = 0; i < blockLength; i++) {
                     t = ptq.popFirst();
                     if (t != null)
                     {
-                        System.out.println("200001");
                         if (t.isVerified()) {
-                            System.out.println("200002");
                             curMA.nextBlockToVerify.addTrans(t);
-                            System.out.println("200003   " + curMA.nextBlockToVerify.getSize());
                             gasTotal+=t.gas;
                         }
                     }
                 }
                 Globals gl = curMA.getGlobals();
-                curMA.w+= gasTotal;
-                System.out.println("200004 " + curMA.nextBlockToVerify.getSize());
-                if (curMA.nextBlockToVerify.getSize()<=blockLength)
+                if (curMA.nextBlockToVerify.getSize()==gl.blockLength)
                 {
-                    System.out.println("300000");
-                    gl.pl.addBlock(curMA.nextBlockToVerify);
+                    curMA.nextBlockToVerify.setGas(gasTotal);
+                    gl.blocksBeingVerified.add(curMA.nextBlockToVerify);
+                    curMA.blocksVerifiedByThisMiner.add(curMA.nextBlockToVerify);
                     curMA.incVerifiedTransactionsCounter(blockLength);
                 }
             }

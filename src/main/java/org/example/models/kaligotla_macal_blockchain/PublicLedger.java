@@ -16,7 +16,7 @@ public class PublicLedger {
     public void addBlock(Block b)
     {
         Transaction [] tr = b.getTransactions();
-        for (int i = 0; i< tr.length;i++)
+        for (int i=0;i<tr.length;i++)
         {
             l.addLast(tr[i]);
         }

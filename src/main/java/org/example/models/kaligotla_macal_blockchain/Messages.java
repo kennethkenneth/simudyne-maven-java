@@ -13,7 +13,12 @@ public class Messages {
         public long createTick;
     }
 
-    /*public static class StateMessage extends Message {
-        public AgentState state;
-    }*/
+    public static class TransferAmount extends Message {
+        public int amount;
+        public MarketAgent receiver;
+    }
+    public static class SubstractAmount extends Message {
+        public int amount;
+        public MarketAgent sender;
+    }
 }

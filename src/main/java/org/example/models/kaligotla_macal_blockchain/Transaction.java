@@ -10,6 +10,8 @@ public class Transaction {
     MarketAgent agentI;     // sender of value in the transaction
     MarketAgent agentJ;     // receiver of value in the transaction
 
+    boolean transferDone;
+
     int verify;             // 0: not verified; 1: verified. Also denoted as sigma.
 
     public Transaction(long tCreate, int gas, int value, MarketAgent agentI, MarketAgent agentJ)
@@ -20,11 +22,17 @@ public class Transaction {
         this.agentI = agentI;
         this.agentJ = agentJ;
         this.verify = 0;
+        this.transferDone = false;
+    }
+
+    public void markTransferAsDone()
+    {
+        this.transferDone = true;
     }
 
     public boolean isVerified()
     {
-        if (this.agentI.w > this.value + this.gas)
+        if (this.agentI.w >= this.value) // + this.gas)
         {
             this.verify = 1;
             return true;

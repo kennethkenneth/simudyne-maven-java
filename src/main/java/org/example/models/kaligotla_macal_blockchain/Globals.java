@@ -2,10 +2,18 @@ package org.example.models.kaligotla_macal_blockchain;
 
 import simudyne.core.abm.GlobalState;
 import simudyne.core.annotations.Input;
+import simudyne.core.annotations.Variable;
+
+import java.util.ArrayList;
 
 public final class Globals extends GlobalState {
 
     PublicLedger pl = new PublicLedger();
+
+    ArrayList<Block> blocksBeingVerified;
+
+    int totalETHValueInMiners = 0;
+    int totalETHValueInMarkets = 0;
 
     /*list of relative gas levels agents can choose from to indicate the priority of a transaction
     highGas = 10, mediumGas = 5, lowGas = 2 */
@@ -23,11 +31,12 @@ public final class Globals extends GlobalState {
     // verify a block of transactions (?)
 
     @Input(name = "Agents needed to Verify Trans.")
-    public int agentsToVerifyTrans = 5; // number of miner agents the network requires to verify a block (?)
+    public int agentsToVerifyTrans = 5; // number of miner agents the network requires
+    // to verify a block. Also known as mu. (?)
 
     @Input(name = "Block Length")
     public int blockLength = 5; //number of transactions in a block from the PTQ that is used
-                                // to form a candidate block of transactions to verify. 2000???
+    // to form a candidate block of transactions to verify. 2000???
 
     @Input(name = "Number of Agents")
     public int numAgents = 100; // Number of Agents in the simulation (?)
@@ -54,8 +63,8 @@ public final class Globals extends GlobalState {
     public float probAgentTransacting = (float) (maxTransactions-minTransactions) / numAgents;
 
     @Input(name = "Initial Market Agent balance (Ξ)")
-    public int initialMarketAgentBalance = 1000;
+    public int initialMarketAgentBalance = 10000;
 
     @Input(name = "Initial Miner Agent balance (Ξ)")
-    public int initialMinerAgentBalance = 1000;
+    public int initialMinerAgentBalance = 10000;
 }

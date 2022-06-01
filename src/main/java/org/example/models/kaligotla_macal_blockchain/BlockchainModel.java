@@ -5,6 +5,8 @@ import simudyne.core.abm.Group;
 import simudyne.core.annotations.ModelSettings;
 import simudyne.core.annotations.Variable;
 
+import java.util.ArrayList;
+
 /*
     Implementation of "A GENERALIZED AGENT BASED FRAMEWORK FOR MODELING A BLOCKCHAIN SYSTEM"
     Chaitanya Kaligotla, Charles M Macal (2018)
@@ -18,9 +20,10 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
 
     PublicLedger pl;
 
-    @Variable public int queueLength;
+    @Variable(name="Queue Length") public int queueLength;
 
-    //@Variable public int verifiedTransactions;
+    @Variable(name="Total ETH Value in Miners") public int totalETHValueInMiners;
+    @Variable(name="Total ETH Value in Markets") public int totalETHValueInMarkets;
 
     @Override
     public void init() {
@@ -31,26 +34,28 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
         registerAgentTypes(MarketAgent.class, MinerAgent.class);
         registerLinkTypes(Links.MarketToMinerLink.class);
         registerLinkTypes(Links.MarketToMarketLink.class);
-        registerMessageTypes(Messages.candidateTransactionMessage.class);
         registerLinkTypes(Links.MinerToMinerLink.class);
+        registerLinkTypes(Links.MinerToMarketLink.class);
+        registerMessageTypes(Messages.candidateTransactionMessage.class);
     }
 
     @Override
     public void setup() {
         pl = new PublicLedger();
         ptq = new TransactionListPTQ();
+        getGlobals().blocksBeingVerified = new ArrayList<>();
         Group<MinerAgent> minerAgentGroup = generateGroup(MinerAgent.class,
                 (int) (getGlobals().numAgents* getGlobals().fracMiners),
                 minerAgent -> { minerAgent.w=getGlobals().initialMinerAgentBalance;}
-                );
+        );
 
         Group<MarketAgent> marketAgentGroup = generateGroup(MarketAgent.class,
                 (int) (getGlobals().numAgents* (1-getGlobals().fracMiners)),
                 marketAgent -> { marketAgent.w=getGlobals().initialMarketAgentBalance;}
-                );
+        );
         marketAgentGroup.fullyConnected(marketAgentGroup,   Links.MarketToMarketLink.class);
         marketAgentGroup.fullyConnected(minerAgentGroup,    Links.MarketToMinerLink.class);
-        minerAgentGroup.fullyConnected(marketAgentGroup,    Links.MarketToMinerLink.class);
+        minerAgentGroup.fullyConnected(marketAgentGroup,    Links.MinerToMarketLink.class);
         minerAgentGroup.fullyConnected(minerAgentGroup,     Links.MinerToMinerLink.class);
         super.setup();
     }
@@ -59,16 +64,25 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
     public void step() {
         long tick = getContext().getTick();
         if (tick == 0) {
-
         }
         else {
-            run(  MarketAgent.generateRandomCandidateTransaction(tick)
-                , MarketAgent.addCandidateTransactionsToPTQ(ptq));
-            run( MinerAgent.selectNextBlockToVerify(ptq, getGlobals().blockLength));
+            run(MarketAgent.generateRandomCandidateTransaction(tick), MarketAgent.addCandidateTransactionsToPTQ(ptq));
+            run(MinerAgent.selectNextBlockToVerify(ptq, getGlobals().blockLength));
+            run(MinerAgent.verifyBlocksAndInitiateValueTransfer());
+            run(MarketAgent.transferValue());
+            run(MinerAgent.sendGasToMiners());
+            run(MarketAgent.transferBlocksToMarketAgents());
+            getGlobals().totalETHValueInMiners=0;
+            getGlobals().totalETHValueInMarkets=0;
+            run(MinerAgent.sumETHValue(),
+                    MarketAgent.sumETHValue());
+            totalETHValueInMiners=getGlobals().totalETHValueInMiners;
+            totalETHValueInMarkets=getGlobals().totalETHValueInMarkets;
         }
         if (getContext().getTick() == getGlobals().simTime) {
         }
         queueLength=ptq.getQueueLength();
+
         //verifiedTransactions = pl.getNumTransactions();
     }
 }

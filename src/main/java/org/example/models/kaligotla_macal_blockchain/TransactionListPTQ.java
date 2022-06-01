@@ -24,10 +24,7 @@ public class TransactionListPTQ  {
             queueLength-=1;
             return tr;
         }
-        else
-        {
-            return null;
-        }
+        return null;
     }
 
     public void enqueueTransaction(Transaction t) {
@@ -38,5 +35,10 @@ public class TransactionListPTQ  {
     public int getQueueLength()
     {
         return queueLength;
+    }
+
+    public void removeTransaction(Transaction tra)
+    {
+        ptq.remove(tra);
     }
 }
