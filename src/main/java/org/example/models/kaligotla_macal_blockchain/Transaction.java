@@ -25,6 +25,11 @@ public class Transaction {
         this.transferDone = false;
     }
 
+    public boolean isTransferDone()
+    {
+        return this.transferDone;
+    }
+
     public void markTransferAsDone()
     {
         this.transferDone = true;

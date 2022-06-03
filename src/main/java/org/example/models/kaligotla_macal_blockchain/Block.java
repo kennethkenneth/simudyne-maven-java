@@ -7,11 +7,13 @@ public class Block {
 
     private ArrayList<MinerAgent> verifiers;
 
+    private ArrayList<MinerAgent> gasPaidTo;
+
     private boolean blockVerified;
 
     private boolean gasPaidToVerifiers;
 
-    private int totalGas = 0;
+    private int totalGas;
 
     private boolean hasValueBeenTransferred;
 
@@ -20,14 +22,14 @@ public class Block {
         return this.blockVerified;
     }
 
-    public void markBlockAsVerifierBy(MinerAgent ma)
+    public void markBlockAsVerifiedBy(MinerAgent ma)
     {
         this.verifiers.add(ma);
     }
 
     public int getTotalGas()
     {
-        return totalGas;
+        return this.totalGas;
     }
 
     public void markBlockAsVerified()
@@ -35,12 +37,21 @@ public class Block {
         this.blockVerified = true;
     }
 
+    public void markBlockAsHavingGasPaidTo(MinerAgent ma)
+    {
+        this.gasPaidTo.add(ma);
+        if (this.gasPaidTo.size()==this.verifiers.size())
+            this.gasPaidToVerifiers = true;
+    }
+
     public Block()
     {
-        trans = new ArrayList();                // Replace 5 with globals.XXX
-        verifiers = new ArrayList<>();
-        blockVerified = false;
-        gasPaidToVerifiers = false;
+        this.trans = new ArrayList();
+        this.verifiers = new ArrayList<>();
+        this.blockVerified = false;
+        this.gasPaidToVerifiers = false;
+        this.hasValueBeenTransferred = false;
+        this.totalGas=0;
     }
 
     public void setGas(int totalGas)
@@ -50,18 +61,18 @@ public class Block {
 
     public Transaction[] getTransactions()
     {
-        return trans.toArray(new Transaction[trans.size()]);
+        return this.trans.toArray(new Transaction[this.trans.size()]);
     }
 
     public int getSize()
     {
-        return trans == null? 0: trans.size();
+        return this.trans == null? 0: this.trans.size();
     }
 
     public void addTrans(Transaction t)
     {
         if (getSize()<5) {      // TODO: Replace with Globals...
-            trans.add(t);
+            this.trans.add(t);
         }
     }
 
@@ -83,13 +94,40 @@ public class Block {
     public void payGasToMiners()
     {
         verifiers.forEach(ma -> {
-            ma.sendGasToMiners();
+            ma.sendGasToMiners(this);
         });
         this.gasPaidToVerifiers = true;
     }
 
+    public void removeFromPTQ(TransactionListPTQ ptq)
+    {
+        for (Transaction t: this.trans)
+        {
+            ptq.removeTransaction(t);
+        }
+
+    }
+
+    public void sendValueToRecipients()
+    {
+        for (int i = 0; i < this.trans.size(); i++)
+        {
+            Transaction tra = trans.get(i);
+            if (tra.isTransferDone())
+            {
+                tra.agentJ.w += tra.value;
+                tra.markTransferAsDone();
+            }
+        }
+    }
+
     public int getNumAgentsVerified()
     {
-        return verifiers.size();
+        return this.verifiers.size();
+    }
+
+    public ArrayList<MinerAgent> getVerifiers()
+    {
+        return this.verifiers;
     }
 }

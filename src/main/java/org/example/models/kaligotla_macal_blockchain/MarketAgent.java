@@ -3,28 +3,17 @@ import simudyne.core.abm.Action;
 import simudyne.core.abm.Agent;
 import simudyne.core.graph.FilteredLinks;
 
-import java.util.Arrays;
-
 public class MarketAgent extends Agent<Globals>{
-    //int i;  //unique identifier for an agent    --- TODO: Do we need this?
     int w; //agents’ current balance of currency or value
-
-    /*public static Action<MarketAgent> step() {
-        return null;
-    }*/
 
     public static Action<MarketAgent> addCandidateTransactionsToPTQ(TransactionListPTQ ptq) {
         return Action.create(MarketAgent.class, curMA -> {
             if (curMA.hasMessagesOfType(Messages.candidateTransactionMessage.class))
             {
-                Messages.candidateTransactionMessage msg = curMA
-                        .getMessageOfType(Messages.candidateTransactionMessage.class);
-                if (curMA.w>msg.value + msg.gas) {
-                    Transaction t = new Transaction(msg.createTick, msg.gas, msg.value, msg.sender, curMA);
-                    //curMA.w-=(msg.value+msg.gas);
-                    curMA.w-=msg.gas;
-                    ptq.enqueueTransaction(t);
-                }
+                System.out.println("Adding candidate transaction to PTQ");
+                Messages.candidateTransactionMessage msg =
+                        curMA.getMessageOfType(Messages.candidateTransactionMessage.class);
+                ptq.enqueueTransaction(new Transaction(msg.createTick, msg.gas, msg.value, msg.sender, curMA));
             }
         });
     }
@@ -38,27 +27,60 @@ public class MarketAgent extends Agent<Globals>{
             return;
         });
     }
-
-    public static Action<MarketAgent> transferBlocksToMarketAgents()
+/*
+    public static Action<MarketAgent> markBlocksAsValueTransferredAndAddToPublicLedgerAndRemoveFromPTQ()
     {
         return Action.create(MarketAgent.class, curMA -> {
-            Globals gl = curMA.getGlobals();
-            gl.blocksBeingVerified
-                    .stream()
-                    .filter(b->b.isBlockVerified())
-                    .filter(b->!b.hasValueBeenTransferred())
-                    .forEach(block->{
-                        Arrays.stream(block.getTransactions())
-                                .filter(t->(t.agentJ==curMA && !t.transferDone))
-                                .forEach(t->{
-                                    curMA.w+=t.value;
-                                    t.markTransferAsDone();
-                                });
-                        block.markBlockHavingValueTransferred();
-                    });
+            ArrayList<Block> blocks = new ArrayList<>();
+            AtomicLong nbrTransfersDone = new AtomicLong();
+            curMA.getGlobals().blocksBeingVerified
+                .stream()
+                .filter(b->b.isBlockVerified())
+                .filter(b->!b.hasValueBeenTransferred())
+                .forEach(b-> {
+                    long transfersDone = Arrays.stream(b.getTransactions()).filter(t -> t.transferDone).count();
+                    if (transfersDone>0)
+                    {
+                        System.out.println("nbrTransfersDone: " + nbrTransfersDone);
+                        System.out.println("Adding: " + Arrays
+                                .stream(b.getTransactions()).filter(t -> t.transferDone).count());
+                    }
+                    nbrTransfersDone.addAndGet(Arrays.stream(b.getTransactions())
+                            .filter(t -> t.transferDone).count());
+                    if (nbrTransfersDone.longValue()==curMA.getGlobals().blockLength)
+                    {
+                        System.out.println("==============");
+                        b.markBlockHavingValueTransferred();
+                        curMA.getGlobals().pl.addBlock(b);
+                        blocks.add(b);
+                    }
+                });
+                blocks.forEach(b-> {
+                    for(Transaction t:b.getTransactions()) {
+                        curMA.getGlobals().ptq.removeTransaction(t);
+                    }
+                    curMA.getGlobals().blocksBeingVerified.remove(b);
+                });
+            });
+    }*/
+
+    /*public static Action<MarketAgent> transferValue()
+    {
+        return Action.create(MarketAgent.class, curMA -> {
+            curMA.getGlobals().blocksBeingVerified
+                .stream()
+                .filter(b->b.isBlockVerified())
+                .filter(b->!b.hasValueBeenTransferred())
+                .forEach(b->{
+                    Arrays.stream(b.getTransactions())
+                    .filter(t->(t.agentJ==curMA && !t.transferDone))
+                    .forEach(t->{
+                        curMA.w+=t.value;
+                        t.markTransferAsDone();
+                    });});
             return;
         });
-    }
+    }*/
 
     public static Action<MarketAgent> generateRandomCandidateTransaction(long tick) {
         return Action.create(MarketAgent.class, curMA -> {
@@ -68,22 +90,26 @@ public class MarketAgent extends Agent<Globals>{
                 FilteredLinks l = curMA.getLinks(Links.MarketToMarketLink.class);
                 if (l.size()>0)
                 {
-                    int nbr = (int) curMA.getPrng().uniform(0, l.size()).sample();
-                    float nbr2 = l.get(nbr).getVertex().getID();
-                    curMA.getLinks(Links.MarketToMarketLink.class)
-                            //.filter(trLink -> trLink.getTo()==nbr2)
-                            .send(Messages.candidateTransactionMessage.class, (message, link) -> {
-                                message.gas = (int) curMA.getPrng().uniform(0,10).sample();    //TODO: Improve
-                                message.sender = curMA;
-                                message.value = (int) curMA.getPrng().uniform(0,100).sample(); //TODO: Improve
-                                message.createTick = tick;
-                            });
+                    int gas = (int) curMA.getPrng().uniform(0,10).sample();         // TODO: Improve
+                    int value = (int) curMA.getPrng().uniform(0,100).sample();      // TODO: Improve
+                    if (curMA.w > gas + value)
+                    {
+                        System.out.println("No Idea...");
+                        curMA.w-=(gas+value);
+                        curMA.getLinks(Links.MarketToMarketLink.class)
+                                .send(Messages.candidateTransactionMessage.class, (message, link) -> {
+                                    message.gas = gas;
+                                    message.sender = curMA;
+                                    message.value = value;
+                                    message.createTick = tick;
+                                });
+                    }
                 }
             }
         });
     }
 
-    public static Action<MarketAgent> transferValue()
+    /*public static Action<MarketAgent> sendMessageTransferValue()
     {
         return Action.create(MarketAgent.class, curMA -> {
             curMA.getMessagesOfType(Messages.TransferAmount.class)
@@ -96,10 +122,20 @@ public class MarketAgent extends Agent<Globals>{
                     );
             return;
         });
-    }
+    }*/
 
-    public static Action<MarketAgent> transferValueTo(Transaction t)
+    /*public static Action<MarketAgent> transferValue()
     {
-        return null;
-    }
+        return Action.create(MarketAgent.class, curMA -> {
+            curMA.getMessagesOfType(Messages.TransferAmount.class)
+                    .stream()
+                    .filter(m->m.receiver == curMA)
+                    .forEach(
+                            msg -> {
+                                curMA.w+= msg.amount;
+                            }
+                    );
+            return;
+        });
+    }*/
 }

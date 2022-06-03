@@ -9,8 +9,9 @@ import java.util.ArrayList;
 public final class Globals extends GlobalState {
 
     PublicLedger pl = new PublicLedger();
+    TransactionListPTQ ptq = new TransactionListPTQ();
 
-    ArrayList<Block> blocksBeingVerified;
+    ArrayList<Block> blocksBeingVerified = new ArrayList<>();
 
     int totalETHValueInMiners = 0;
     int totalETHValueInMarkets = 0;

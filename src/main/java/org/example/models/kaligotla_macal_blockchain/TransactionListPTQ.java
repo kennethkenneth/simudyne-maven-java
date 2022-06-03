@@ -15,14 +15,10 @@ public class TransactionListPTQ  {
         queueLength = 0;
     }
 
-    public Transaction popFirst()
+    public Transaction get(int i)
     {
-        if (!ptq.isEmpty())
-        {
-            Transaction tr = ptq.getFirst();
-            ptq.removeFirst();
-            queueLength-=1;
-            return tr;
+        if (!ptq.isEmpty()) {
+            return ptq.get(i);
         }
         return null;
     }

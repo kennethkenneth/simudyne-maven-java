@@ -5,7 +5,6 @@ import simudyne.core.abm.Agent;
 import java.util.ArrayList;
 
 public class MinerAgent extends Agent<Globals> {
-    //int i;  //unique identifier for an agent -- TODO: Do we need this?
     int w;  //agents’ current balance of currency or value
     /*
     Relative computing power of the agent. computingPower = 1,2,...N denoting the compute power
@@ -18,8 +17,8 @@ public class MinerAgent extends Agent<Globals> {
     int tEndVerify;
     int strategy; // 0: LARGEST, 1: POLAR, 2: PARTITION
 
-    Block nextBlockToVerify;
-    ArrayList<Block> blocksVerifiedByThisMiner;
+    //Block nextBlockToVerify;
+    //ArrayList<Block> blocksVerifiedByThisMiner;
 
     /*
         A miner agent, selects a fixed number of transactions (blocklength) from the PTQ to form a candidate block
@@ -28,11 +27,6 @@ public class MinerAgent extends Agent<Globals> {
         (none of the transactions in that candidate block have already been added to the Public Ledger),
         then the candidate block gets added to the Public Ledger.
     */
-
-    public MinerAgent(){
-        this.nextBlockToVerify= new Block();
-        this.blocksVerifiedByThisMiner = new ArrayList<>();
-    }
 
     public void incVerifiedTransactionsCounter(int i)
     {
@@ -43,45 +37,33 @@ public class MinerAgent extends Agent<Globals> {
     {
         return Action.create(MinerAgent.class, curMA -> {
             Globals gl = curMA.getGlobals();
-            //ArrayList<Block>blocksToVerify = gl.blocksBeingVerified;
             gl.blocksBeingVerified.forEach(block -> {
-                if (!curMA.blocksVerifiedByThisMiner.contains(block))
+                if (!block.getVerifiers().contains(curMA))
                 {
                     Transaction[] trs = block.getTransactions();
-                    int nbrVerif = 0;
+                    boolean allTransactionsVerified = true;
                     for (int i=0;i<trs.length;i++)
                     {
-                        if (trs[i].isVerified())
+                        if (!trs[i].isVerified())
                         {
-                            nbrVerif++;
+                            allTransactionsVerified = false;
                         }
                     }
-                    if (nbrVerif==trs.length)
-                    {
-                        //block.incNumAgentsVerified();
-                        block.markBlockAsVerifierBy(curMA);
-                        curMA.blocksVerifiedByThisMiner.add(block);
+                    if (allTransactionsVerified) {
+                        //curMA.nextBlockToVerify.markBlockAsVerifiedBy(curMA);
+                        block.markBlockAsVerifiedBy(curMA);
                     }
-                    if (block.getNumAgentsVerified() == gl.agentsToVerifyTrans) {
-                        for (int i = 0; i < trs.length; i++)
-                        {
-                            Transaction curTran = trs[i];
-                            curMA.getLinks(Links.MarketToMarketLink.class)
-                                    .send(Messages.TransferAmount.class,
-                                            (msg, link) -> {
-                                                msg.amount = curTran.value;
-                                                msg.receiver = curTran.agentJ;
-                                            });
-                            curMA.getLinks(Links.MarketToMarketLink.class)
-                                    .send(Messages.SubstractAmount.class,
-                                            (msg, link) -> {
-                                                msg.amount = curTran.value;
-                                                msg.sender = curTran.agentI;
-                                            });
-                        }
-                        block.payGasToMiners();
+                    /*System.out.println("Yo yo yo yo" + allTransactionsVerified + " "
+                            + block.getNumAgentsVerified() + " " + gl.agentsToVerifyTrans);*/
+                    if (allTransactionsVerified && block.getNumAgentsVerified() == gl.agentsToVerifyTrans) {
+                        System.out.println("10000111");
                         block.markBlockAsVerified();
-                        //gl.blocksBeingVerified.remove(block);  //////////////
+                        block.payGasToMiners();
+                        block.sendValueToRecipients();
+                        block.markBlockHavingValueTransferred();
+                        block.removeFromPTQ(gl.ptq);
+                        curMA.getGlobals().pl.addBlock(block);
+                        curMA.getGlobals().blocksBeingVerified.remove(block);
                     }
                 }
             });
@@ -98,39 +80,42 @@ public class MinerAgent extends Agent<Globals> {
         });
     }
 
-    public static Action<MinerAgent> sendGasToMiners()
+    public static Action<MinerAgent> sendGasToMiners(Block b)
     {
         return Action.create(MinerAgent.class, curMA -> {
-                    Globals gl = curMA.getGlobals();
-                    gl.blocksBeingVerified.forEach(bl -> {
-                        curMA.w += bl.getTotalGas();
-                    });
-                    return;
+                if (b.isBlockVerified() &&
+                    !b.hasGasBeenPaidToMiners() &&
+                    b.getVerifiers().contains(curMA))
+                {
+                    System.out.println("Paying gas....");
+                    curMA.w += b.getTotalGas()/b.getVerifiers().size();
+                    b.markBlockAsHavingGasPaidTo(curMA);
                 }
-        );
+            return;
+        });
     }
 
     public static Action<MinerAgent> selectNextBlockToVerify(TransactionListPTQ ptq, int blockLength) {
         return Action.create(MinerAgent.class, curMA -> {
-            Transaction t;
             int gasTotal = 0;
+            Globals gl = curMA.getGlobals();
+            Block bl = new Block();
             if (ptq.getQueueLength()>=blockLength) {
                 for (int i = 0; i < blockLength; i++) {
-                    t = ptq.popFirst();
+                    Transaction t = ptq.get(i);
                     if (t != null)
                     {
-                        if (t.isVerified()) {
-                            curMA.nextBlockToVerify.addTrans(t);
+                        if (t.isVerified() && bl.getSize()<gl.blockLength) {
+                            bl.addTrans(t);
                             gasTotal+=t.gas;
                         }
                     }
                 }
-                Globals gl = curMA.getGlobals();
-                if (curMA.nextBlockToVerify.getSize()==gl.blockLength)
+                if (bl.getSize()==gl.blockLength)
                 {
-                    curMA.nextBlockToVerify.setGas(gasTotal);
-                    gl.blocksBeingVerified.add(curMA.nextBlockToVerify);
-                    curMA.blocksVerifiedByThisMiner.add(curMA.nextBlockToVerify);
+                    bl.setGas(gasTotal);
+                    bl.markBlockAsVerifiedBy(curMA);
+                    gl.blocksBeingVerified.add(bl);
                     curMA.incVerifiedTransactionsCounter(blockLength);
                 }
             }

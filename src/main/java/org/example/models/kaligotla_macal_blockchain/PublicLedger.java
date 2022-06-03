@@ -11,7 +11,12 @@ public class PublicLedger {
     then the candidate block gets added to the Public Ledger
      */
 
-    private final LinkedList<Transaction> l = new LinkedList<>();
+    private final LinkedList<Transaction> l;
+
+    PublicLedger()
+    {
+        l = new LinkedList<>();
+    }
 
     public void addBlock(Block b)
     {
