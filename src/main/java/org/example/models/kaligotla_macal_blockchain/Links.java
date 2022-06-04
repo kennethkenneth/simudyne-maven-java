@@ -7,4 +7,5 @@ public class Links {
     public static class MarketToMarketLink extends Link.Empty{}
     public static class MinerToMarketLink extends Link.Empty{}
     public static class MinerToMinerLink extends Link.Empty{}
+    public static class MinerToBlockLink extends Link.Empty{}
 }

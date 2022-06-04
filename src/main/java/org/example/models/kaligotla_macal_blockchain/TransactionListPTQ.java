@@ -1,4 +1,6 @@
 package org.example.models.kaligotla_macal_blockchain;
+import simudyne.core.abm.Action;
+
 import java.util.LinkedList;
 
 /*
@@ -17,7 +19,7 @@ public class TransactionListPTQ  {
 
     public Transaction get(int i)
     {
-        if (!ptq.isEmpty()) {
+        if (!ptq.isEmpty() && ptq.size()>i) {
             return ptq.get(i);
         }
         return null;
@@ -36,5 +38,11 @@ public class TransactionListPTQ  {
     public void removeTransaction(Transaction tra)
     {
         ptq.remove(tra);
+    }
+
+    public void removeTransactionsOfBlock(Block block) {
+        block.getTransactions().forEach(trans -> {
+            removeTransaction(trans);
+        });
     }
 }

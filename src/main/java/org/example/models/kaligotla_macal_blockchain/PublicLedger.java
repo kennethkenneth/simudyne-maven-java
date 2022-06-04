@@ -18,17 +18,18 @@ public class PublicLedger {
         l = new LinkedList<>();
     }
 
-    public void addBlock(Block b)
-    {
-        Transaction [] tr = b.getTransactions();
-        for (int i=0;i<tr.length;i++)
-        {
-            l.addLast(tr[i]);
-        }
-    }
-
-    public int getNumTransactions()
+    public int getLedgerSize()
     {
         return l.size();
+    }
+
+    public void addBlock(Block b)
+    {
+        b.getTransactions().forEach(trans -> {
+            if (!l.contains(trans))
+            {
+                l.addLast(trans);
+            }
+        });
     }
 }

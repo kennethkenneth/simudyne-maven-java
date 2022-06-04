@@ -35,25 +35,24 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
         registerLinkTypes(Links.MarketToMarketLink.class);
         registerLinkTypes(Links.MinerToMinerLink.class);
         registerLinkTypes(Links.MinerToMarketLink.class);
+        registerLinkTypes(Links.MinerToBlockLink.class);
         registerMessageTypes(Messages.candidateTransactionMessage.class);
     }
 
     @Override
     public void setup() {
-        getGlobals().pl = new PublicLedger();
-        getGlobals().ptq = new TransactionListPTQ();
-        //pl = new PublicLedger();
-        //ptq = new TransactionListPTQ();
-        getGlobals().blocksBeingVerified = new ArrayList<>();
+        //getGlobals().blocksBeingVerified = new ArrayList<>();
         Group<MinerAgent> minerAgentGroup = generateGroup(MinerAgent.class,
                 (int) (getGlobals().numAgents* getGlobals().fracMiners),
-                minerAgent -> { minerAgent.w=getGlobals().initialMinerAgentBalance;}
+                minerAgent -> { minerAgent.w=getGlobals().initialMinerAgentBalance;
+                                minerAgent.gl=getGlobals();
+                                minerAgent.createBlockList();
+                                }
         );
-
         Group<MarketAgent> marketAgentGroup = generateGroup(MarketAgent.class,
                 (int) (getGlobals().numAgents* (1-getGlobals().fracMiners)),
-                marketAgent -> { marketAgent.w=getGlobals().initialMarketAgentBalance;}
-        );
+                marketAgent -> {    marketAgent.w=getGlobals().initialMarketAgentBalance;
+                                    marketAgent.gl=getGlobals();});
         marketAgentGroup.fullyConnected(marketAgentGroup,   Links.MarketToMarketLink.class);
         marketAgentGroup.fullyConnected(minerAgentGroup,    Links.MarketToMinerLink.class);
         minerAgentGroup.fullyConnected(marketAgentGroup,    Links.MinerToMarketLink.class);
@@ -68,26 +67,25 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
         }
         else {
             run(MarketAgent.generateRandomCandidateTransaction(tick),
-                    MarketAgent.addCandidateTransactionsToPTQ(getGlobals().ptq));
-            run(MinerAgent.selectNextBlockToVerify(getGlobals().ptq, getGlobals().blockLength));
-            run(MinerAgent.verifyBlocksAndInitiateValueTransfer());
+                MarketAgent.broadcastTransactionsToMiners(),
+                MinerAgent.addCandidateTransactionsToPTQ());
+            run(MinerAgent.spawnNewBlocks(),
+                MinerAgent.receiveBroadcastBlocks());
+            run(MinerAgent.verifyBlocksAndTransferValue(),
+                MinerAgent.receiveBroadcastVerifications(),
+                MinerAgent.updateLedger());
             getGlobals().totalETHValueInMiners=0;
             getGlobals().totalETHValueInMarkets=0;
             run(MinerAgent.sumETHValue());
             run(MarketAgent.sumETHValue());
-
-
-            //run(MarketAgent.sendMessageTransferValue());
-            //run(MarketAgent.transferValue());
-            //run(MinerAgent.sendGasToMiners());
-            //run(MarketAgent.markBlocksAsValueTransferredAndAddToPublicLedgerAndRemoveFromPTQ());
-
+            run(MinerAgent.calculateQueueLength());
+            run(MinerAgent.calculateLedgerLength());
         }
         if (getContext().getTick() == getGlobals().simTime) {
         }
         totalETHValueInMiners=getGlobals().totalETHValueInMiners;
         totalETHValueInMarkets=getGlobals().totalETHValueInMarkets;
-        queueLength=getGlobals().ptq.getQueueLength();
-        ledgerLength=getGlobals().pl.getNumTransactions();
+        queueLength=getGlobals().queueLength;
+        ledgerLength=getGlobals().ledgerLength;
     }
 }

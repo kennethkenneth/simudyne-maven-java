@@ -2,19 +2,15 @@ package org.example.models.kaligotla_macal_blockchain;
 
 import simudyne.core.abm.GlobalState;
 import simudyne.core.annotations.Input;
-import simudyne.core.annotations.Variable;
 
-import java.util.ArrayList;
-
-public final class Globals extends GlobalState {
-
-    PublicLedger pl = new PublicLedger();
-    TransactionListPTQ ptq = new TransactionListPTQ();
-
-    ArrayList<Block> blocksBeingVerified = new ArrayList<>();
-
+public final class Globals extends GlobalState
+{
     int totalETHValueInMiners = 0;
     int totalETHValueInMarkets = 0;
+    int queueLength=0;
+    int ledgerLength=0;
+    double maxBlockId = 10000000;
+    double maxTransactionId = 1000000000;
 
     /*list of relative gas levels agents can choose from to indicate the priority of a transaction
     highGas = 10, mediumGas = 5, lowGas = 2 */
