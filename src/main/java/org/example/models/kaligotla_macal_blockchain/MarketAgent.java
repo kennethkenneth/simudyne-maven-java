@@ -11,7 +11,6 @@ public class MarketAgent extends Agent<Globals>{
         return Action.create(MarketAgent.class, currMA -> {
             Globals gl = currMA.getGlobals();
             gl.totalETHValueInMarkets+=currMA.w;
-            return;
         });
     }
 
@@ -38,16 +37,16 @@ public class MarketAgent extends Agent<Globals>{
             Globals gl = curMA.getGlobals();
             if (curMA.getPrng().uniform(0, 1).sample() <= gl.probAgentTransacting)
             {
-                FilteredLinks l = curMA.getLinks(Links.MarketToMarketLink.class);
+                FilteredLinks<Links.MarketToMarketLink> l = curMA.getLinks(Links.MarketToMarketLink.class);
                 if (l.size()>0)
                 {
-                    int gas = (int) curMA.getPrng().uniform(0,10).sample();         // TODO: Improve
-                    int value = (int) curMA.getPrng().uniform(0,100).sample();      // TODO: Improve
+                    int gas = (int) curMA.getPrng().uniform(0,gl.gasFee).sample();         // TODO: Improve
+                    int value = (int) curMA.getPrng().uniform(0,100).sample();          // TODO: Improve
                     if (curMA.w > gas + value)
                     {
                         curMA.w-=(gas+value);
-                        curMA.getLinks(Links.MarketToMarketLink.class)
-                                .send(Messages.candidateTransactionMessage.class, (message, link) -> {
+                        //TO-DO: Take just one
+                        l.send(Messages.candidateTransactionMessage.class, (message, link) -> {
                                     message.gas = gas;
                                     message.sender = curMA;
                                     message.value = value;

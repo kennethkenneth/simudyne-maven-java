@@ -30,7 +30,8 @@ public class Messages {
         public Block block;
     }
 
+    /*
     public static class broadcastVerificationToMiners extends Message.Empty {
         public Block block;
-    }
+    }*/
 }

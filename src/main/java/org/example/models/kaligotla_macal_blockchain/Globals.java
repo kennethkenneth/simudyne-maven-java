@@ -12,10 +12,11 @@ public final class Globals extends GlobalState
     double maxBlockId = 10000000;
     double maxTransactionId = 1000000000;
 
+
     /*list of relative gas levels agents can choose from to indicate the priority of a transaction
     highGas = 10, mediumGas = 5, lowGas = 2 */
     @Input(name = "Gas Fee (Ξ)")
-    public int gasFee = 5;
+    public int gasFee = 500;
 
     @Input(name = "Delta T (sec.)")
     public double deltaT = 15; //the time increment between the Blockchain system updates (secs.)

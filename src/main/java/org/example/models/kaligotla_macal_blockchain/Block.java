@@ -1,28 +1,77 @@
 package org.example.models.kaligotla_macal_blockchain;
+
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Iterator;
+
+import static java.lang.System.exit;
 
 public class Block  {
-    private int blockId;
+    private String blockId;
     private ArrayList<Transaction> trans;
     private ArrayList<MinerAgent> verifiers;
     private ArrayList<MinerAgent> gasPaidTo;
     private boolean blockVerified;
-    private boolean gasPaidToVerifiers;
     private int totalGas;
     private boolean hasValueBeenTransferred;
-
     private Globals gl;
+
+
+    private Transaction cloneTransaction(Transaction t)
+    {
+        return new Transaction(t.tCreate, t.gas, t.value, t.agentI, t.agentJ, t.transactionId);
+    }
+
+    public Block cloneBlock()
+    {
+        Block bl = new Block(gl, getBlockId());
+        getVerifiers().forEach(ma -> bl.addVerifiers(ma));
+        getTransactions().forEach(trans-> bl.appendTransaction(cloneTransaction(trans)));
+        return bl;
+    }
 
     public void appendTransaction(Transaction t)
     {
         if (t != null)
         {
-            if (t.isVerified() && getSize()<5)          // TODO  Replace 5
+            if (t.isVerified() && getSize()<gl.blockLength)
             {
                 trans.add(t);
                 setGas(getTotalGas()+t.gas);
             }
+            if (getSize()==gl.blockLength)
+            {
+                setBlockId();
+            }
         }
+    }
+
+    private String setBlockId(){
+        Collections.sort(trans, (o1, o2) -> {
+            if(o1.transactionId == o2.transactionId)
+                return 0;
+            return o1.transactionId < o2.transactionId ? -1 : 1;
+        });
+
+        String concatTransId = "";
+        Iterator it = trans.iterator();
+        while (it.hasNext()) {
+            concatTransId = concatTransId.concat("ID:" + ((Transaction)it.next()).transactionId + ";");
+        }
+
+        try{
+            MessageDigest md5 = MessageDigest.getInstance("MD5");
+            md5.update(StandardCharsets.UTF_8.encode(concatTransId));
+            blockId = String.format("%032x", new BigInteger(1, md5.digest()));
+        }
+        catch(Exception e)
+        {
+            exit(1);
+        }
+        return blockId;
     }
 
     public ArrayList<Transaction> getTransactions()
@@ -47,26 +96,31 @@ public class Block  {
 
     public void markBlockAsHavingGasPaidTo(MinerAgent ma)
     {
+        if (!gasPaidTo.contains(ma))
+        {
             gasPaidTo.add(ma);
-            if (gasPaidTo.size()==verifiers.size())
-                gasPaidToVerifiers = true;
-            return;
+        }
+        return;
     }
 
-    public Block(Globals gl, int blockId)
+    public void markBlockAsHavingValueTransferred()
+    {
+        hasValueBeenTransferred = true;
+    }
+
+    public Block(Globals gl, String blockId)
     {
         this.blockId = blockId;
         trans = new ArrayList();
-        verifiers = new ArrayList<>();
-        gasPaidTo = new ArrayList<>();
+        verifiers = new ArrayList();
+        gasPaidTo = new ArrayList();
         blockVerified = false;
-        gasPaidToVerifiers = false;
         hasValueBeenTransferred = false;
         totalGas=0;
         this.gl = gl;
     }
 
-    public int getBlockId()
+    public String getBlockId()
     {
         return this.blockId;
     }
@@ -82,49 +136,10 @@ public class Block  {
         return trans == null? 0: trans.size();
     }
 
-    public boolean hasGasBeenPaidToMiners()
-    {
-        return gasPaidToVerifiers;
-    }
-
     public boolean hasValueBeenTransferred()
     {
         return hasValueBeenTransferred;
     }
-
-    public void payGasToMiners()
-    {
-        verifiers.forEach(ma -> {
-            ma.sendGasToMiners(this);
-        });
-        gasPaidToVerifiers = true;
-        return;
-    }
-/*
-    public void fillBlock(MinerAgent miner)
-    {
-        int blockLength =   5; // curBlock.getGlobals().blockLength;
-        if (verifiers.size()< 5) // curBlock.getGlobals().agentsToVerifyTrans)
-        {
-            //Messages.fillBlockMessage msg = curBlock.getMessageOfType(Messages.fillBlockMessage.class);
-            for (int i = 0; i < blockLength; i++)
-            {
-                Transaction t = miner.ptq.get(i);
-                if (t != null)
-                {
-                    if (t.isVerified() && getSize()<blockLength) {
-                        trans.add(t);
-                        setGas(getTotalGas()+t.gas);
-                    }
-                }
-            }
-            if (getSize()==blockLength)
-            {
-                verifiers.add(miner);
-                miner.blocksBeingVerified.add(this);
-            }
-        }
-    }*/
 
     public void sendValueToRecipients()
     {
@@ -139,11 +154,6 @@ public class Block  {
         return;
     }
 
-    public int getNumAgentsVerified()
-    {
-        return verifiers.size();
-    }
-
     public ArrayList<MinerAgent> getVerifiers()
     {
         return verifiers;
@@ -151,7 +161,7 @@ public class Block  {
 
     public void addVerifiers(MinerAgent miner)
     {
-        if (verifiers.size()<gl.agentsToVerifyTrans)    // TODO - replace
+        if (verifiers.size()<gl.agentsToVerifyTrans)
         {
             if (!verifiers.contains(miner))
             {
@@ -160,7 +170,24 @@ public class Block  {
         }
         if (verifiers.size()==gl.agentsToVerifyTrans)
         {
+            System.out.println("The block has all the required verifications");
             blockVerified = true;
         }
     }
+
+    public boolean verifyTransactions()
+    {
+        boolean verifiedTrans = true;
+        Iterator it = getTransactions().iterator();
+        while (it.hasNext())
+        {
+            Transaction t = (Transaction)it.next();
+            if (t.isVerified()==false)
+            {
+                verifiedTrans=false;
+            }
+        }
+        return verifiedTrans;
+    }
+
 }

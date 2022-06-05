@@ -2,6 +2,8 @@ package org.example.models.kaligotla_macal_blockchain;
 
 import simudyne.core.abm.AgentBasedModel;
 import simudyne.core.abm.Group;
+import simudyne.core.abm.Sequence;
+import simudyne.core.abm.Split;
 import simudyne.core.annotations.ModelSettings;
 import simudyne.core.annotations.Variable;
 
@@ -66,16 +68,21 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
         if (tick == 0) {
         }
         else {
-            run(MarketAgent.generateRandomCandidateTransaction(tick),
-                MarketAgent.broadcastTransactionsToMiners(),
-                MinerAgent.addCandidateTransactionsToPTQ());
-            run(MinerAgent.spawnNewBlocks(),
-                MinerAgent.receiveBroadcastBlocks());
-            run(MinerAgent.verifyBlocksAndTransferValue(),
-                MinerAgent.receiveBroadcastVerifications(),
-                MinerAgent.updateLedger());
+            System.out.println("TICK: " + tick);
+            System.out.println("============");
+            run(
+                    Sequence.create(MarketAgent.generateRandomCandidateTransaction(tick)),
+                    Sequence.create(MarketAgent.broadcastTransactionsToMiners(),
+                                    MinerAgent.addCandidateTransactionsToPTQ()));
+            run(
+                    Sequence.create(MinerAgent.broadcastBlocks()),
+                    Sequence.create(MinerAgent.receiveBroadcastBlocks()));
+            run(
+                    Sequence.create(MinerAgent.verifyBlocksAndTransferValue(),
+                                    MinerAgent.updateLedger()));
             getGlobals().totalETHValueInMiners=0;
             getGlobals().totalETHValueInMarkets=0;
+            //getGlobals().queueLength=0;
             run(MinerAgent.sumETHValue());
             run(MarketAgent.sumETHValue());
             run(MinerAgent.calculateQueueLength());
