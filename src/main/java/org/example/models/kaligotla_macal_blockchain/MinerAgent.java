@@ -33,13 +33,10 @@ public class MinerAgent extends Agent<Globals> {
         private boolean contains(String blockId)
         {
             boolean found = false;
-            Iterator it = blocksBeingVerified.iterator();
-            while (it.hasNext())
-            {
-                Block bl = (Block)it.next();
-                if (bl.getBlockId().compareTo(blockId)==0)
-                {
+            for (Block bl : blocksBeingVerified) {
+                if (bl.getBlockId().compareTo(blockId) == 0) {
                     found = true;
+                    break;
                 }
             }
             return found;
@@ -58,10 +55,8 @@ public class MinerAgent extends Agent<Globals> {
 
         private void append(Block b)
         {
-            //System.out.println("We are right here in append()");
             if (get(b.getBlockId())==null)
             {
-                //System.out.println("We are right here in append() -- adding");
                 blocksBeingVerified.add(b);
             }
         }
@@ -79,7 +74,6 @@ public class MinerAgent extends Agent<Globals> {
         {
             return blocksBeingVerified;
         }
-
     }
 
     public void createBlockList()
@@ -102,13 +96,9 @@ public class MinerAgent extends Agent<Globals> {
                 List<Messages.broadcastTransactionsToMinersPTQ> lst =
                         curMinerAgent.getMessagesOfType(Messages.broadcastTransactionsToMinersPTQ.class);
                 lst.forEach(msg->{
-                    //System.out.println("BEFORE");
-                    //System.out.println(curMinerAgent.ptq.getPTQ());
                     curMinerAgent.ptq.enqueueTransaction(new Transaction(msg.createTick, msg.gas, msg.value,
                             msg.sender, msg.receiver,
                             (int) curMinerAgent.getPrng().uniform(0,curMinerAgent.gl.maxTransactionId).sample()));
-                    //System.out.println("AFTER");
-                    //System.out.println(curMinerAgent.ptq.getPTQ());
                 });
             }
         });
@@ -127,10 +117,8 @@ public class MinerAgent extends Agent<Globals> {
     public static Action<MinerAgent> updateLedger()
     {
         return Action.create(MinerAgent.class, curMinerAgent -> {
-            System.out.println("updateLedger000");
             if (curMinerAgent.hasMessagesOfType(Messages.broadcastBlockToLedgers.class))
             {
-                System.out.println("updateLedger001");
                 List<Messages.broadcastBlockToLedgers> list =
                         curMinerAgent.getMessagesOfType(Messages.broadcastBlockToLedgers.class);
                 list.forEach(msg->{
@@ -161,7 +149,6 @@ public class MinerAgent extends Agent<Globals> {
                                 || !block.hasGasBeenPaidTo(curMA))
                         ) {
                             bli.append(block);
-                            System.out.println("=A=A=A=A=A=A=A=A=A=A=A");
                         }
                     });
                     bli.getList().forEach(b -> {
@@ -175,10 +162,8 @@ public class MinerAgent extends Agent<Globals> {
                             b.sendValueToRecipients();
                             b.markBlockAsHavingValueTransferred();
                         }
-                        //block.payGasToMiners();
-
-                        curMA.ptq.removeTransactionsOfBlock(b);   // PUT IT BACK
-                        curMA.pl.addBlock(b);                     // PUT IT BACK
+                        curMA.ptq.removeTransactionsOfBlock(b);
+                        curMA.pl.addBlock(b);
                         curMA.blocksBeingVerified.remove(b);
                         curMA.getLinks(Links.MinerToMinerLink.class).send(Messages.broadcastBlockToLedgers.class,
                                 (message, link) -> message.block = b);
@@ -194,19 +179,6 @@ public class MinerAgent extends Agent<Globals> {
             gl.totalETHValueInMiners+=currMA.w;
         });
     }
-
-    /*public static Action<MinerAgent> sendGasToMiners(Block b)
-    {
-        return Action.create(MinerAgent.class, curMA -> {
-                if (b.isBlockVerified() && !b.hasGasBeenPaidToMiners() &&
-                    b.getVerifiers().contains(curMA) && !b.hasGasBeenPaidTo(curMA))
-                {
-                    System.out.println("Paying gas....");
-                    curMA.w += b.getTotalGas()/b.getVerifiers().size();
-                    b.markBlockAsHavingGasPaidTo(curMA);
-                }
-        });
-    }*/
 
     public Block fillUpBlockWithPTQ(Block b)
     {
@@ -239,13 +211,9 @@ public class MinerAgent extends Agent<Globals> {
                   lst.stream().forEach(msg->{
                       if (!curMA.blocksBeingVerified.contains(msg.block.getBlockId()))
                       {
-                          System.out.println("================ADDING1=========== " + msg.block.getBlockId());
                           Block bl2 = msg.block.cloneBlock();
-                          System.out.println("================ADDING2=========== " + bl2.getBlockId());
-                          // Clone??
                           if (bl2.verifyTransactions())
                           {
-                              System.out.println("================ADDING3=========== " + bl2.getBlockId());
                               bl2.addVerifiers(curMA);
                           }
                           curMA.blocksBeingVerified.append(bl2);
@@ -272,10 +240,8 @@ public class MinerAgent extends Agent<Globals> {
                 }
                 curMA.blocksBeingVerified.append(bl);
             }
-            curMA.blocksBeingVerified.getList().forEach(bl->{
-                curMA.getLinks(Links.MinerToMinerLink.class)
-                        .send(Messages.broadcastBlockToMiners.class, (message, link) -> message.block = bl);
-            });
+            curMA.blocksBeingVerified.getList().forEach(bl-> curMA.getLinks(Links.MinerToMinerLink.class)
+                    .send(Messages.broadcastBlockToMiners.class, (message, link) -> message.block = bl));
         });
     }
 }

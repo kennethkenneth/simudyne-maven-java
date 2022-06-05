@@ -1,8 +1,6 @@
 package org.example.models.kaligotla_macal_blockchain;
-import simudyne.core.abm.Action;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 
 /*
 PTQ - Pending Transaction Queue. A vector of unverified transactions.
@@ -14,7 +12,7 @@ public class TransactionListPTQ  {
 
     public TransactionListPTQ()
     {
-        ptq = new ArrayList();
+        ptq = new ArrayList<>();
         queueLength = 0;
     }
 
@@ -24,11 +22,6 @@ public class TransactionListPTQ  {
             return ptq.get(i);
         }
         return null;
-    }
-
-    public ArrayList getPTQ()
-    {
-        return ptq;
     }
 
     public void enqueueTransaction(Transaction t) {
@@ -50,8 +43,6 @@ public class TransactionListPTQ  {
     }
 
     public void removeTransactionsOfBlock(Block block) {
-        block.getTransactions().forEach(trans -> {
-            removeTransaction(trans);
-        });
+        block.getTransactions().forEach(this::removeTransaction);
     }
 }

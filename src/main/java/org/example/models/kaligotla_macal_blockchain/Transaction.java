@@ -1,7 +1,6 @@
 package org.example.models.kaligotla_macal_blockchain;
 
 public class Transaction {
-    // transaction[idt,agent_i,agent_j,tCreate,tVerify,gas,value]
     int transactionId;                // unique identifier for a transaction
     long tCreate;           // time when the transaction is created
     long tVerify;           // time when the transaction is verified
@@ -9,7 +8,6 @@ public class Transaction {
     int value;              // value of the transaction, sent by agent i and received by agent j
     MarketAgent agentI;     // sender of value in the transaction
     MarketAgent agentJ;     // receiver of value in the transaction
-
     boolean transferDone;
 
     public Transaction(long tCreate, int gas, int value, MarketAgent agentI, MarketAgent agentJ, int transactionId)

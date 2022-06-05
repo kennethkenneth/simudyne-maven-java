@@ -3,11 +3,8 @@ package org.example.models.kaligotla_macal_blockchain;
 import simudyne.core.abm.AgentBasedModel;
 import simudyne.core.abm.Group;
 import simudyne.core.abm.Sequence;
-import simudyne.core.abm.Split;
 import simudyne.core.annotations.ModelSettings;
 import simudyne.core.annotations.Variable;
-
-import java.util.ArrayList;
 
 /*
     Implementation of "A GENERALIZED AGENT BASED FRAMEWORK FOR MODELING A BLOCKCHAIN SYSTEM"
@@ -29,7 +26,6 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
     @Override
     public void init() {
         createLongAccumulator("numVerifiedTransactions", "Number of Verified Transactions");
-        //createLongAccumulator("numPendingTransactions", "Pending Transactions");
         createLongAccumulator("energyConsumption", "Cumulative Energy Consumption");
         createLongAccumulator("energyConsumedPerVerifiedTransaction", "Energy Consumed per Verified Transaction");
         registerAgentTypes(MarketAgent.class, MinerAgent.class);
@@ -82,7 +78,6 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
                                     MinerAgent.updateLedger()));
             getGlobals().totalETHValueInMiners=0;
             getGlobals().totalETHValueInMarkets=0;
-            //getGlobals().queueLength=0;
             run(MinerAgent.sumETHValue());
             run(MarketAgent.sumETHValue());
             run(MinerAgent.calculateQueueLength());
