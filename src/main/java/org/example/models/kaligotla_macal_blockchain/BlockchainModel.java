@@ -5,6 +5,8 @@ import simudyne.core.abm.Group;
 import simudyne.core.abm.Sequence;
 import simudyne.core.annotations.ModelSettings;
 import simudyne.core.annotations.Variable;
+import java.util.ArrayList;
+import java.util.Random;
 
 /*
     Implementation of "A GENERALIZED AGENT BASED FRAMEWORK FOR MODELING A BLOCKCHAIN SYSTEM"
@@ -15,17 +17,14 @@ import simudyne.core.annotations.Variable;
 
 @ModelSettings(timeUnit = "SECONDS", end=15*4)
 public class BlockchainModel extends AgentBasedModel<Globals> {
-    //TransactionListPTQ ptq;
-    //PublicLedger pl;
-
     @Variable(name="Queue Length") public int queueLength;
-    @Variable(name="Ledger Length") public int ledgerLength;
+    @Variable(name="Public Ledger Length") public int ledgerLength;
     @Variable(name="Total ETH Value in Miners") public int totalETHValueInMiners;
     @Variable(name="Total ETH Value in Markets") public int totalETHValueInMarkets;
+    Globals gl;
 
     @Override
     public void init() {
-        createLongAccumulator("numVerifiedTransactions", "Number of Verified Transactions");
         createLongAccumulator("energyConsumption", "Cumulative Energy Consumption");
         createLongAccumulator("energyConsumedPerVerifiedTransaction", "Energy Consumed per Verified Transaction");
         registerAgentTypes(MarketAgent.class, MinerAgent.class);
@@ -39,18 +38,18 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
 
     @Override
     public void setup() {
-        //getGlobals().blocksBeingVerified = new ArrayList<>();
+        gl = getGlobals();
         Group<MinerAgent> minerAgentGroup = generateGroup(MinerAgent.class,
-                (int) (getGlobals().numAgents* getGlobals().fracMiners),
-                minerAgent -> { minerAgent.w=getGlobals().initialMinerAgentBalance;
-                                minerAgent.gl=getGlobals();
+                (int) (gl.numAgents*getGlobals().fracMiners),
+                minerAgent -> { minerAgent.w=gl.initialMinerAgentBalance;
+                                minerAgent.gl=gl;
                                 minerAgent.createBlockList();
                                 }
         );
         Group<MarketAgent> marketAgentGroup = generateGroup(MarketAgent.class,
-                (int) (getGlobals().numAgents* (1-getGlobals().fracMiners)),
-                marketAgent -> {    marketAgent.w=getGlobals().initialMarketAgentBalance;
-                                    marketAgent.gl=getGlobals();});
+                (int) (gl.numAgents*(1-gl.fracMiners)),
+                marketAgent -> {    marketAgent.w=gl.initialMarketAgentBalance;
+                                    marketAgent.gl=gl;});
         marketAgentGroup.fullyConnected(marketAgentGroup,   Links.MarketToMarketLink.class);
         marketAgentGroup.fullyConnected(minerAgentGroup,    Links.MarketToMinerLink.class);
         minerAgentGroup.fullyConnected(marketAgentGroup,    Links.MinerToMarketLink.class);
@@ -61,33 +60,74 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
     @Override
     public void step() {
         long tick = getContext().getTick();
+        System.out.println("TICK: " + tick);
+        System.out.println("============");
         if (tick == 0) {
+            run(WalletAgent.assignWalletAddress());
+            run(MarketAgent.fillUpMarketWalletAddressArray());
+            System.out.println("Market Wallet Addresses: " + gl.marketWalletAddresses);
+            run(MarketAgent.assignCoinbaseAddress());
+            System.out.println("Coinbase Address: " + gl.coinbaseAgent.walletAddress);
+            System.out.println("Coinbase Agent: "   + gl.coinbaseAgent);
+            run(MarketAgent.provideInitialBalanceToCoinbase());
+            run(MarketAgent.sendMoneyFromCoinbaseToMarkets(0));
         }
         else {
-            System.out.println("TICK: " + tick);
-            System.out.println("============");
+            ArrayList<WalletPair> wp = generateTransactionPairs(20);
             run(
-                    Sequence.create(MarketAgent.generateRandomCandidateTransaction(tick)),
+                    Sequence.create(MarketAgent.generateRandomTransactions(tick, wp)),
                     Sequence.create(MarketAgent.broadcastTransactionsToMiners(),
                                     MinerAgent.addCandidateTransactionsToPTQ()));
             run(
-                    Sequence.create(MinerAgent.broadcastBlocks()),
-                    Sequence.create(MinerAgent.receiveBroadcastBlocks()));
+                    Sequence.create(MinerAgent.createAndBroadcastCandidateBlocks(),
+                                    MinerAgent.receiveCandidateBlocks()));
             run(
-                    Sequence.create(MinerAgent.verifyBlocksAndTransferValue(),
+                    Sequence.create(MinerAgent.verifyCandidateBlocksAndTransferValueAndGas(),
+                                    MarketAgent.receiveTransferValue(),
                                     MinerAgent.updateLedger()));
-            getGlobals().totalETHValueInMiners=0;
-            getGlobals().totalETHValueInMarkets=0;
             run(MinerAgent.sumETHValue());
             run(MarketAgent.sumETHValue());
             run(MinerAgent.calculateQueueLength());
             run(MinerAgent.calculateLedgerLength());
         }
-        if (getContext().getTick() == getGlobals().simTime) {
+        if (getContext().getTick() == gl.simTime) {
         }
-        totalETHValueInMiners=getGlobals().totalETHValueInMiners;
-        totalETHValueInMarkets=getGlobals().totalETHValueInMarkets;
-        queueLength=getGlobals().queueLength;
-        ledgerLength=getGlobals().ledgerLength;
+        totalETHValueInMiners=gl.totalETHValueInMiners;
+        totalETHValueInMarkets=gl.totalETHValueInMarkets;
+        queueLength=gl.queueLength;
+        ledgerLength=gl.ledgerLength;
+        gl.totalETHValueInMiners=0;
+        gl.totalETHValueInMarkets=0;
+    }
+
+    public ArrayList<WalletPair> generateTransactionPairs(int numPairs)
+    {
+        ArrayList<WalletPair> wpa = new ArrayList<>();
+        ArrayList<Integer> walletAddresses = (ArrayList<Integer>)gl.marketWalletAddresses.clone();
+        Random rand = new Random();
+        Integer origin, destination;
+        System.out.println("numPairs=" + numPairs);
+        for (int i=0;i<numPairs;i++)
+        {
+            origin = walletAddresses.get(rand.nextInt(walletAddresses.size()));
+            walletAddresses.remove(origin);
+            destination = walletAddresses.get(rand.nextInt(walletAddresses.size()));
+            walletAddresses.remove(destination);
+            WalletPair wp = new WalletPair(origin,destination);
+            System.out.println("wp:" + wp.originWallet + "," + wp.destinationWallet);
+            wpa.add(wp);
+        }
+        return wpa;
+    }
+
+    static class WalletPair
+    {
+        public int originWallet;
+        public int destinationWallet;
+        WalletPair(int o, int d)
+        {
+            originWallet = o;
+            destinationWallet = d;
+        }
     }
 }

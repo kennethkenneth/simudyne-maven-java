@@ -3,6 +3,8 @@ package org.example.models.kaligotla_macal_blockchain;
 import simudyne.core.abm.GlobalState;
 import simudyne.core.annotations.Input;
 
+import java.util.ArrayList;
+
 public final class Globals extends GlobalState
 {
     int totalETHValueInMiners = 0;
@@ -12,11 +14,16 @@ public final class Globals extends GlobalState
     double maxBlockId = 10000000;
     double maxTransactionId = 1000000000;
 
+    int maxWalletId = 1000000000;
+
+    ArrayList<Integer> marketWalletAddresses = new ArrayList<>();
+
+    MarketAgent coinbaseAgent;
 
     /*list of relative gas levels agents can choose from to indicate the priority of a transaction
     highGas = 10, mediumGas = 5, lowGas = 2 */
     @Input(name = "Gas Fee (Ξ)")
-    public int gasFee = 500;
+    public int gasFee = 1;
 
     @Input(name = "Delta T (sec.)")
     public double deltaT = 15; //the time increment between the Blockchain system updates (secs.)
@@ -37,7 +44,7 @@ public final class Globals extends GlobalState
     // to form a candidate block of transactions to verify. 2000???
 
     @Input(name = "Number of Agents")
-    public int numAgents = 100; // Number of Agents in the simulation (?)
+    public int numAgents = 50; // Number of Agents in the simulation (?)
 
     @Input(name = "Fraction of Miner Agents")
     public float fracMiners = (float) 0.10; // Fraction of agents who are miner agents
@@ -58,11 +65,11 @@ public final class Globals extends GlobalState
     public int maxTransactions = 70; // 500,000 / 24 / 60 / 4
 
     @Input(name = "Initial Transactions")
-    public float probAgentTransacting = (float) (maxTransactions-minTransactions) / numAgents;
+    public double probAgentTransacting = 0.8; // (float) (maxTransactions-minTransactions) / numAgents;
 
     @Input(name = "Initial Market Agent balance (Ξ)")
     public int initialMarketAgentBalance = 10000;
 
     @Input(name = "Initial Miner Agent balance (Ξ)")
-    public int initialMinerAgentBalance = 10000;
+    public int initialMinerAgentBalance = 0;
 }

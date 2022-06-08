@@ -4,7 +4,6 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
-
 import static java.lang.System.exit;
 
 public class Block  {
@@ -20,7 +19,8 @@ public class Block  {
 
     private Transaction cloneTransaction(Transaction t)
     {
-        return new Transaction(t.tCreate, t.gas, t.value, t.agentI, t.agentJ, t.transactionId);
+        //return new Transaction(t.tCreate, t.gas, t.value, t.agentI, t.agentJ, t.transactionId);
+        return new Transaction(t.tCreate, t.gas, t.value, t.senderAddress, t.receiverAddress, t.transactionId);
     }
 
     public Block cloneBlock()
@@ -38,7 +38,7 @@ public class Block  {
             if (t.isVerified() && getSize()<gl.blockLength)
             {
                 trans.add(t);
-                setGas(getTotalGas()+t.gas);
+                addGasToBlock(t.gas);
             }
             if (getSize()==gl.blockLength)
             {
@@ -98,9 +98,9 @@ public class Block  {
         }
     }
 
-    public void markBlockAsHavingValueTransferred()
+    public ArrayList<MinerAgent> getGasPaidTo()
     {
-        hasValueBeenTransferred = true;
+        return gasPaidTo;
     }
 
     public Block(Globals gl, String blockId)
@@ -120,9 +120,9 @@ public class Block  {
         return this.blockId;
     }
 
-    public void setGas(int totalGas)
+    public void addGasToBlock(int totalGas)
     {
-        this.totalGas = totalGas;
+        this.totalGas+= totalGas;
     }
 
     public int getSize()
@@ -135,14 +135,8 @@ public class Block  {
         return hasValueBeenTransferred;
     }
 
-    public void sendValueToRecipients()
+    public void markBlockAsValueTransferred()
     {
-        for (Transaction tran : this.trans) {
-            if (!tran.isTransferDone()) {
-                tran.agentJ.w += tran.value;
-                tran.markTransferAsDone();
-            }
-        }
         hasValueBeenTransferred = true;
     }
 
@@ -162,7 +156,6 @@ public class Block  {
         }
         if (verifiers.size()==gl.agentsToVerifyTrans)
         {
-            System.out.println("The block has all the required verifications");
             blockVerified = true;
         }
     }

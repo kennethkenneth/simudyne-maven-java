@@ -1,13 +1,9 @@
 package org.example.models.kaligotla_macal_blockchain;
-import simudyne.core.abm.Action;
-import simudyne.core.abm.Agent;
 
 import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import simudyne.core.abm.Action;
 
-public class MinerAgent extends Agent<Globals> {
-    int w;  //agents’ current balance of currency or value
+public class MinerAgent extends WalletAgent {
     /*
     Relative computing power of the agent. computingPower = 1,2,...N denoting the compute power
     required by a miner agent to solve a cryptographic puzzle as a proof of computation work.
@@ -17,23 +13,19 @@ public class MinerAgent extends Agent<Globals> {
     int totalMineCost;
     int tEndVerify;
     int strategy; // 0: LARGEST, 1: POLAR, 2: PARTITION
-
     private final PublicLedger pl = new PublicLedger();
     private final TransactionListPTQ ptq = new TransactionListPTQ();
-
-    Globals gl;
-
     private BlockList blocksBeingVerified;
 
     private static class BlockList{
-        ArrayList<Block> blocksBeingVerified;
+        ArrayList<Block> blockList;
         BlockList(){
-            blocksBeingVerified = new ArrayList<>();
+            blockList = new ArrayList<>();
         }
         private boolean contains(String blockId)
         {
             boolean found = false;
-            for (Block bl : blocksBeingVerified) {
+            for (Block bl : blockList) {
                 if (bl.getBlockId().compareTo(blockId) == 0) {
                     found = true;
                     break;
@@ -45,7 +37,7 @@ public class MinerAgent extends Agent<Globals> {
         private Block get(String blockId)
         {
             Block blockSearch = null;
-            for (Block b : blocksBeingVerified) {
+            for (Block b : blockList) {
                 if (b.getBlockId().compareTo(blockId)==0) {
                     blockSearch = b;
                 }
@@ -57,7 +49,7 @@ public class MinerAgent extends Agent<Globals> {
         {
             if (get(b.getBlockId())==null)
             {
-                blocksBeingVerified.add(b);
+                blockList.add(b);
             }
         }
 
@@ -66,13 +58,18 @@ public class MinerAgent extends Agent<Globals> {
             String blockId = b.getBlockId();
             if (contains(blockId))
             {
-                blocksBeingVerified.remove(get(blockId));
+                blockList.remove(get(blockId));
             }
         }
 
         public ArrayList<Block> getList()
         {
-            return blocksBeingVerified;
+            return blockList;
+        }
+
+        public int size()
+        {
+            return blockList.size();
         }
     }
 
@@ -93,13 +90,11 @@ public class MinerAgent extends Agent<Globals> {
         return Action.create(MinerAgent.class, curMinerAgent -> {
             if (curMinerAgent.hasMessagesOfType(Messages.broadcastTransactionsToMinersPTQ.class))
             {
-                List<Messages.broadcastTransactionsToMinersPTQ> lst =
-                        curMinerAgent.getMessagesOfType(Messages.broadcastTransactionsToMinersPTQ.class);
-                lst.forEach(msg->{
+                curMinerAgent.getMessagesOfType(Messages.broadcastTransactionsToMinersPTQ.class).forEach(msg->
                     curMinerAgent.ptq.enqueueTransaction(new Transaction(msg.createTick, msg.gas, msg.value,
-                            msg.sender, msg.receiver,
-                            (int) curMinerAgent.getPrng().uniform(0,curMinerAgent.gl.maxTransactionId).sample()));
-                });
+                            msg.senderAddress, msg.receiverAddress,
+                            (int) curMinerAgent.getPrng().uniform(0,curMinerAgent.gl.maxTransactionId).sample()))
+                );
             }
         });
     }
@@ -119,15 +114,14 @@ public class MinerAgent extends Agent<Globals> {
         return Action.create(MinerAgent.class, curMinerAgent -> {
             if (curMinerAgent.hasMessagesOfType(Messages.broadcastBlockToLedgers.class))
             {
-                List<Messages.broadcastBlockToLedgers> list =
-                        curMinerAgent.getMessagesOfType(Messages.broadcastBlockToLedgers.class);
-                list.forEach(msg->{
+                curMinerAgent.getMessagesOfType(Messages.broadcastBlockToLedgers.class).forEach(msg->{
                     curMinerAgent.ptq.removeTransactionsOfBlock(msg.block);
                     curMinerAgent.pl.addBlock(msg.block);
                     curMinerAgent.blocksBeingVerified.remove(msg.block);
                     // Remove blocks containing any of the transactions from the appended block
                     ArrayList<Block> blocksToRemove = new ArrayList<>();
-                    curMinerAgent.blocksBeingVerified.getList().forEach(block-> block.getTransactions().forEach(trans->{
+                    curMinerAgent.blocksBeingVerified.getList()
+                            .forEach(block-> block.getTransactions().forEach(trans->{
                         if (msg.block.getTransactions().contains(trans))
                         {
                             blocksToRemove.add(block);
@@ -139,109 +133,129 @@ public class MinerAgent extends Agent<Globals> {
         });
     }
 
-    public static Action<MinerAgent> verifyBlocksAndTransferValue() {
-        return Action.create(MinerAgent.class, curMA ->
-                {
-                    BlockList bli = new BlockList();
-                    curMA.blocksBeingVerified.getList().forEach(block -> {
-                        if (block.isBlockVerified() && block.getVerifiers().contains(curMA)
-                                && (block.hasValueBeenTransferred()
-                                || !block.hasGasBeenPaidTo(curMA))
-                        ) {
-                            bli.append(block);
-                        }
-                    });
-                    bli.getList().forEach(b -> {
-                        if (!b.hasGasBeenPaidTo(curMA))
-                        {
-                            curMA.w += b.getTotalGas() / curMA.gl.agentsToVerifyTrans;
-                            b.markBlockAsHavingGasPaidTo(curMA);
-                        }
-                        if (!b.hasValueBeenTransferred())
-                        {
-                            b.sendValueToRecipients();
-                            b.markBlockAsHavingValueTransferred();
-                        }
-                        curMA.ptq.removeTransactionsOfBlock(b);
-                        curMA.pl.addBlock(b);
-                        curMA.blocksBeingVerified.remove(b);
-                        curMA.getLinks(Links.MinerToMinerLink.class).send(Messages.broadcastBlockToLedgers.class,
-                                (message, link) -> message.block = b);
-                    });
+    public static Action<MinerAgent> verifyCandidateBlocksAndTransferValueAndGas() {
+        return Action.create(MinerAgent.class, curMA -> {
+            BlockList bli = new BlockList();
+            curMA.blocksBeingVerified.getList().forEach(block -> {
+                if (block.isBlockVerified() && block.getVerifiers().contains(curMA)
+                        && (!block.hasValueBeenTransferred()
+                        || !block.hasGasBeenPaidTo(curMA))) {
+                    bli.append(block);
                 }
-        );
+            });
+            bli.getList().forEach(b -> {
+                if (!b.hasGasBeenPaidTo(curMA)) {
+                    curMA.w += b.getTotalGas() / curMA.gl.agentsToVerifyTrans;
+                    b.markBlockAsHavingGasPaidTo(curMA);
+                }
+                if (!b.hasValueBeenTransferred())
+                {
+                    //System.out.println("if (!b.hasValueBeenTransferred())");
+                    for (Transaction tran : b.getTransactions()) {
+                        //To avoid double-sending, only the last verifier is responsible to initiate payment
+                        if (!tran.isTransferDone() && b.getVerifiers().get(curMA.gl.agentsToVerifyTrans-1)==curMA) {
+                            /*System.out.println("//To avoid double-sending, only the last verifier is " +
+                                                "responsible to initiate payment");*/
+                            curMA.getLinks(Links.MinerToMarketLink.class).send(Messages.transactionValue.class,
+                                    (message, link) -> message.t = tran);
+                            tran.markTransferAsDone();
+                            b.markBlockAsValueTransferred();
+                        }
+                    }
+                }
+                else {
+                    System.out.println("Adding to ledger...");
+                    curMA.ptq.removeTransactionsOfBlock(b);
+                    curMA.pl.addBlock(b);
+                    curMA.blocksBeingVerified.remove(b);
+                    curMA.getLinks(Links.MinerToMinerLink.class).send(Messages.broadcastBlockToLedgers.class,
+                            (message, link) -> message.block = b);
+                }
+            });
+        });
     }
 
     public static Action<MinerAgent> sumETHValue()
     {
-        return Action.create(MinerAgent.class, currMA -> {
-            Globals gl = currMA.getGlobals();
-            gl.totalETHValueInMiners+=currMA.w;
-        });
+        return Action.create(MinerAgent.class, currMA ->
+                currMA.gl.totalETHValueInMiners+=currMA.w);
     }
 
-    public Block fillUpBlockWithPTQ(Block b)
+    public Block getBlockFromPTQ()
     {
-        if (!b.isBlockVerified())
+        //Give a temporary random Block ID
+        Block b = new Block(gl, Integer.toString((int) getPrng().uniform(0, gl.maxBlockId).sample()));
+        //peek()	Retrieves, but does not remove, the head of this queue, or returns null if this queue is empty.
+        //poll()	Retrieves and removes the head of this queue, or returns null if this queue is empty.
+        Transaction trans = ptq.poll();
+        /*while ((trans != null) && trans.isVerified() && !b.isBlockVerified() && b.getTransactions().size() < gl.blockLength)*/
+        while( (trans!=null) && (b.getTransactions().size() < gl.blockLength) && (!b.isBlockVerified()) )
         {
-            for (int i = 0; i < ptq.getQueueLength(); i++)
+            if (trans.isVerified())
             {
-                Transaction trans = ptq.get(i);
-                if (trans != null)
-                {
-                    if (trans.isVerified() && b.getTransactions().size() < gl.blockLength) {
-                        //System.out.println("toc3 " + i);
-                        b.appendTransaction(trans);
-                        if (b.getSize() == gl.blockLength) {
-                            //System.out.println("Verified!" + trans.toString());
-                            b.addVerifiers(this);
-                        }
-                    }
-                }
+                b.appendTransaction(trans);
             }
+            if (b.getSize() < gl.blockLength)
+                trans = ptq.poll();
+        }
+        if (b.getTransactions().size()==gl.blockLength)
+        {
+            b.addVerifiers(this);
             b.getTransactions().forEach(ptq::removeTransaction);
         }
         return b;
     }
 
-    public static Action<MinerAgent> receiveBroadcastBlocks(){
+    public static Action<MinerAgent> receiveCandidateBlocks(){
         return Action.create(MinerAgent.class, curMA -> {
-            if (curMA.hasMessagesOfType(Messages.broadcastBlockToMiners.class)) {
-                  List<Messages.broadcastBlockToMiners> lst = curMA.getMessagesOfType(Messages.broadcastBlockToMiners.class);
-                  lst.stream().forEach(msg->{
-                      if (!curMA.blocksBeingVerified.contains(msg.block.getBlockId()))
+            if (curMA.hasMessagesOfType(Messages.broadcastCandidateBlockToMiners.class)) {
+                  curMA.getMessagesOfType(Messages.broadcastCandidateBlockToMiners.class)
+                    .forEach(msg->{
+                      BlockList bli = curMA.blocksBeingVerified;
+                      if (!bli.contains(msg.block.getBlockId()))
                       {
-                          Block bl2 = msg.block.cloneBlock();
-                          if (bl2.verifyTransactions())
+                          Block blo = msg.block.cloneBlock();
+                          if (blo.verifyTransactions())
                           {
-                              bl2.addVerifiers(curMA);
+                              blo.addVerifiers(curMA);
                           }
-                          curMA.blocksBeingVerified.append(bl2);
+                          bli.append(blo);
                       }
                       else
                       {
-                          msg.block.getVerifiers().forEach(ma->curMA.blocksBeingVerified
-                                  .get(msg.block.getBlockId()).addVerifiers(ma));
+                          if (msg.block.hasValueBeenTransferred())
+                          {
+                              //System.out.println("Something is wrong 1"); // PUT IT BACK
+                          }
+                          if (msg.block.getGasPaidTo().size()!=0)
+                          {
+                              //System.out.println("Something is wrong 2");
+                          }
+                          Block blo = bli.get(msg.block.getBlockId());
+                          msg.block.getVerifiers().forEach(blo::addVerifiers);
+                          //msg.block.getGasPaidTo().forEach(blo::markBlockAsHavingGasPaidTo);
+                          //if  (msg.block.hasValueBeenTransferred()) blo.markBlockAsValueTransferred();
                       }
                   });
             }
         });
     }
 
-    public static Action<MinerAgent> broadcastBlocks() {
+    public static Action<MinerAgent> createAndBroadcastCandidateBlocks() {
         return Action.create(MinerAgent.class, curMA -> {
             int blockLength = curMA.getGlobals().blockLength;
             if (curMA.ptq.getQueueLength()>=blockLength) {
-                Block bl = curMA.fillUpBlockWithPTQ(new Block(curMA.gl,
-                        Integer.toString((int) curMA.getPrng().uniform(0, curMA.gl.maxBlockId).sample())));
+                Block bl = curMA.getBlockFromPTQ();
                 if (bl.verifyTransactions())
                 {
                     bl.addVerifiers(curMA);
+                    curMA.blocksBeingVerified.append(bl);
                 }
-                curMA.blocksBeingVerified.append(bl);
             }
-            curMA.blocksBeingVerified.getList().forEach(bl-> curMA.getLinks(Links.MinerToMinerLink.class)
-                    .send(Messages.broadcastBlockToMiners.class, (message, link) -> message.block = bl));
+            System.out.println("Number of blocks being verified:" + curMA.blocksBeingVerified.size());
+            curMA.blocksBeingVerified.getList().forEach(bl->
+                    curMA.getLinks(Links.MinerToMinerLink.class).send(Messages.broadcastCandidateBlockToMiners.class,
+                            (message, link) -> message.block = bl));
         });
     }
 }
