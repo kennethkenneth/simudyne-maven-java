@@ -4,28 +4,30 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicReference;
+
 import static java.lang.System.exit;
 
 public class Block  {
-    private String blockId;
+    // TODO: Include nonce, timestamp, stateRoot, difficulty, baseFeePerGas, etc. etc and any other fields missing
+    private String blockId;                         // TODO: Replace with Ethereum's hash data type
+    public String previousBlockId;                  // TODO: Replace with Ethereum's hash data type
     private final ArrayList<Transaction> trans;
-    private final ArrayList<MinerAgent> verifiers;
-    private final ArrayList<MinerAgent> gasPaidTo;
-    private boolean blockVerified;
-    private int totalGas;
-    private boolean hasValueBeenTransferred;
-    private final Globals gl;
-
+    private final ArrayList<MinerAgent> verifiers;  //TODO: This is not in the Ethereum standard
+    private boolean blockVerified;                  // TODO: This is not in the Ethereum standard
+    private int totalGas;                           // TODO: This is not in the Ethereum standard
 
     private Transaction cloneTransaction(Transaction t)
     {
-        //return new Transaction(t.tCreate, t.gas, t.value, t.agentI, t.agentJ, t.transactionId);
-        return new Transaction(t.tCreate, t.gas, t.value, t.senderAddress, t.receiverAddress, t.transactionId);
+        return new Transaction(t.tCreate, t.gas, t.value, t.from, t.to, t.transactionId);
     }
 
-    public Block cloneBlock()
+    public Block cloneBlock(WalletAgent a)
     {
-        Block bl = new Block(gl, getBlockId());
+        Block bl = new Block(a);
+        bl.blockId = blockId;
+        bl.previousBlockId = previousBlockId;
+        bl.totalGas = totalGas;
         getVerifiers().forEach(bl::addVerifiers);
         getTransactions().forEach(trans-> bl.appendTransaction(cloneTransaction(trans)));
         return bl;
@@ -35,12 +37,12 @@ public class Block  {
     {
         if (t != null)
         {
-            if (t.isVerified() && getSize()<gl.blockLength)
+            if (t.isVerified() && getSize()<Globals.blockLength)
             {
                 trans.add(t);
                 addGasToBlock(t.gas);
             }
-            if (getSize()==gl.blockLength)
+            if (getSize()==Globals.blockLength)
             {
                 setBlockId();
             }
@@ -75,11 +77,6 @@ public class Block  {
         return trans;
     }
 
-    public boolean hasGasBeenPaidTo(MinerAgent ma)
-    {
-        return gasPaidTo.contains(ma);
-    }
-
     public boolean isBlockVerified()
     {
         return blockVerified;
@@ -90,29 +87,15 @@ public class Block  {
         return totalGas;
     }
 
-    public void markBlockAsHavingGasPaidTo(MinerAgent ma)
+    public Block(WalletAgent a)
     {
-        if (!gasPaidTo.contains(ma))
-        {
-            gasPaidTo.add(ma);
-        }
-    }
-
-    public ArrayList<MinerAgent> getGasPaidTo()
-    {
-        return gasPaidTo;
-    }
-
-    public Block(Globals gl, String blockId)
-    {
-        this.blockId = blockId;
+        // origin = walletAddresses.get((int)random.uniform(0, walletAddresses.size()).sample());
+        // this.blockId = Integer.toString((int) a.getPrng().uniform(0, a.gl.maxBlockId).sample());
+        this.blockId = Integer.toString((int) a.gl.random.uniform(0, a.gl.maxBlockId).sample());
         trans = new ArrayList<>();
         verifiers = new ArrayList<>();
-        gasPaidTo = new ArrayList<>();
         blockVerified = false;
-        hasValueBeenTransferred = false;
         totalGas=0;
-        this.gl = gl;
     }
 
     public String getBlockId()
@@ -130,16 +113,6 @@ public class Block  {
         return trans.size();
     }
 
-    public boolean hasValueBeenTransferred()
-    {
-        return hasValueBeenTransferred;
-    }
-
-    public void markBlockAsValueTransferred()
-    {
-        hasValueBeenTransferred = true;
-    }
-
     public ArrayList<MinerAgent> getVerifiers()
     {
         return verifiers;
@@ -147,14 +120,14 @@ public class Block  {
 
     public void addVerifiers(MinerAgent miner)
     {
-        if (verifiers.size()<gl.agentsToVerifyTrans)
+        if (verifiers.size()<Globals.agentsToVerifyTrans)
         {
             if (!verifiers.contains(miner))
             {
                 verifiers.add(miner);
             }
         }
-        if (verifiers.size()==gl.agentsToVerifyTrans)
+        if (verifiers.size()==Globals.agentsToVerifyTrans)
         {
             blockVerified = true;
         }
@@ -169,5 +142,13 @@ public class Block  {
             }
         }
         return verifiedTrans;
+    }
+    public String toString()
+    {
+        AtomicReference<String> str = new AtomicReference<>("[Block: " + blockId + " (" + trans.size() + " transactions). ");
+        trans.forEach(t->{
+            str.set(str.get().concat("{T id: " +t.transactionId+ " sender:" + t.from + " receiver:" + t.to + " value:$" + t.value + "}, "));
+        });
+        return str.get() + ", previousBlockId:" + previousBlockId + "]";
     }
 }

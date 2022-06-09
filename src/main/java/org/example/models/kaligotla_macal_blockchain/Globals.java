@@ -2,6 +2,7 @@ package org.example.models.kaligotla_macal_blockchain;
 
 import simudyne.core.abm.GlobalState;
 import simudyne.core.annotations.Input;
+import simudyne.core.rng.SeededRandom;
 
 import java.util.ArrayList;
 
@@ -11,14 +12,25 @@ public final class Globals extends GlobalState
     int totalETHValueInMarkets = 0;
     int queueLength=0;
     int ledgerLength=0;
-    double maxBlockId = 10000000;
-    double maxTransactionId = 1000000000;
-
-    int maxWalletId = 1000000000;
+    public static final double maxBlockId = 10000000;                   //TODO: Replace with actual Ethereum constants
+    public static final double maxTransactionId = 1000000000;           //TODO: Replace with actual Ethereum constants
+    public static final int maxWalletId = 1000000000;                   //TODO: Replace with actual Ethereum constants
+    public static final String START_BLOCK_ID = "START";
 
     ArrayList<Integer> marketWalletAddresses = new ArrayList<>();
+    ArrayList<Integer> minerWalletAddresses = new ArrayList<>();
 
     MarketAgent coinbaseAgent;
+
+    String ledgerBlocks = "";
+
+    public static final long seed = 645902744249333L;                                    //TODO: Use getPRNG() where possible
+    public static SeededRandom random = SeededRandom.create(seed);
+    public static int blockLength = 5;  //number of transactions in a block from the PTQ that is used
+    public static int agentsToVerifyTrans = 5; // number of miner agents the network requires
+    // to verify a block. Also known as mu. (?)
+
+    // to form a candidate block of transactions to verify. 2000???
 
     /*list of relative gas levels agents can choose from to indicate the priority of a transaction
     highGas = 10, mediumGas = 5, lowGas = 2 */
@@ -34,14 +46,6 @@ public final class Globals extends GlobalState
     //@Input(name = "Network Reward (Ξ)")
     //public int networkReward = 5; // network reward split among the miner agents who
     // verify a block of transactions (?)
-
-    @Input(name = "Agents needed to Verify Trans.")
-    public int agentsToVerifyTrans = 5; // number of miner agents the network requires
-    // to verify a block. Also known as mu. (?)
-
-    @Input(name = "Block Length")
-    public int blockLength = 5; //number of transactions in a block from the PTQ that is used
-    // to form a candidate block of transactions to verify. 2000???
 
     @Input(name = "Number of Agents")
     public int numAgents = 50; // Number of Agents in the simulation (?)

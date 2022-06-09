@@ -4,8 +4,8 @@ import simudyne.core.graph.Message;
 
 public class Messages {
     public static class candidateTransactionMessage extends Message.Empty {
-        public int senderAddress;
-        public int receiverAddress;
+        public int from;
+        public int to;
         public int gas;
         public int value;
         public long createTick;
@@ -13,8 +13,8 @@ public class Messages {
 
     public static class broadcastTransactionsToMinersPTQ extends Message.Empty{
         public int gas;
-        public int senderAddress;
-        public int receiverAddress;
+        public int from;
+        public int to;
         public int value;
         public long createTick;
     }
@@ -25,9 +25,5 @@ public class Messages {
 
     public static class broadcastCandidateBlockToMiners extends Message.Empty {
         public Block block;
-    }
-
-    public static class transactionValue extends Message.Empty {
-        public Transaction t;
     }
 }
