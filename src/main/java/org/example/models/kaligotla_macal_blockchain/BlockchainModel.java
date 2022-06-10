@@ -23,10 +23,6 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
     @Variable(name="Total ETH Value in Markets") public int totalETHValueInMarkets;
     Globals gl;
 
-    // Use getOrSetLong if using this method before setup. (There might not be a seed value before setup.)
-    //public long seed = 645902744249333L;                                    //TODO: Use it
-    //public SeededRandom random = SeededRandom.create(seed);
-
     @Override
     public void init() {
         createLongAccumulator("energyConsumption", "Cumulative Energy Consumption");
@@ -89,7 +85,7 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
             run(Sequence.create(MinerAgent.createAndBroadcastCandidateBlocks(),
                                 MinerAgent.receiveCandidateBlocks()));
             run(Sequence.create(MinerAgent.verifyCandidateBlocksAndWriteToLedger(),
-                                MinerAgent.receiveLedgerUpdates(),
+                                MinerAgent.updateMinerLedger(),
                                 MarketAgent.updateLedger()));
             gl.ledgerBlocks = setBold + "\nMiner Agents" + setNormal + " (" +  gl.minerWalletAddresses.size() + "): ";
             run(MinerAgent.sumETHValue());

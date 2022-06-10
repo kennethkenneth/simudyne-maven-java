@@ -20,6 +20,11 @@ public class Transaction {
         this.to = to;
     }
 
+    public Transaction clone()
+    {
+        return new Transaction(tCreate, gas, value, from, to, transactionId);
+    }
+
     public boolean isVerified()
     {
         return true; // this.agentI.w >= this.value;    // maybe we should re-think this

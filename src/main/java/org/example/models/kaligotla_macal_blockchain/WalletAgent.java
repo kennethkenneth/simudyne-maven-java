@@ -16,7 +16,13 @@ public class WalletAgent extends Agent<Globals> {
 
     public int getBalance()
     {
-        return pl.getFinalBalanceFor(this);
+        return pl.getBalance(this);
+    }
+
+    public int getBalanceFor(int walletAddress)
+    {
+        //return pl.getBalance(wa);
+        return 1000000000;   //TODO: To be implemented
     }
 
     public static Action<WalletAgent> updateLedger()

@@ -30,10 +30,8 @@ public class MinerAgent extends WalletAgent {
             {
                 curMinerAgent.getMessagesOfType(Messages.broadcastTransactionsToMinersPTQ.class).forEach(msg->
                     curMinerAgent.ptq.enqueueTransaction(new Transaction(msg.createTick, msg.gas, msg.value,
-                            msg.from, msg.to,
-                            //(int) curMinerAgent.getPrng().uniform(0,curMinerAgent.gl.maxTransactionId).sample()))
-                            (int) curMinerAgent.gl.random.uniform(0, Globals.maxTransactionId).sample()))
-                );
+                            msg.from, msg.to, msg.transactionId)));
+                            //(int) curMinerAgent.gl.random.uniform(0, Globals.maxTransactionId).sample()))
             }
         });
     }
@@ -47,8 +45,7 @@ public class MinerAgent extends WalletAgent {
     {
         return Action.create(MinerAgent.class,
                     curMA -> {
-                        curMA.gl.ledgerLength = curMA.pl.getLedgerSize()*Globals.blockLength + 100;
-                        //System.out.println("======================" + curMA.gl.ledgerLength);
+                        curMA.gl.ledgerLength = curMA.pl.getLedgerSize()*Globals.blockLength;
                     });
     }
 
@@ -57,33 +54,27 @@ public class MinerAgent extends WalletAgent {
         return Action.create(MinerAgent.class, curMA -> curMA.gl.minerWalletAddresses.add(curMA.walletAddress));
     }
 
-    public static Action<WalletAgent> receiveLedgerUpdates()
+    public static Action<MinerAgent> updateMinerLedger()
     {
-        return Action.create(WalletAgent.class, curWalletAgent -> {
-            //System.out.println("receiveLedgerUpdates() 100");
-            MinerAgent curMinerAgent = (MinerAgent)curWalletAgent;
+        return Action.create(MinerAgent.class, curMinerAgent -> {
             if (curMinerAgent.hasMessagesOfType(Messages.broadcastBlockToLedgers.class))
             {
-                //System.out.println("receiveLedgerUpdates() 200");
                 curMinerAgent.getMessagesOfType(Messages.broadcastBlockToLedgers.class).forEach(msg->{
-                    //System.out.println("receiveLedgerUpdates() 300");
                     curMinerAgent.ptq.removeTransactionsOfBlock(msg.block);
-                    //System.out.println("receiveLedgerUpdates() 310");
+                    String lastBlockIdBefore = curMinerAgent.pl.getLastBlockID();
                     curMinerAgent.pl.addBlock(msg.block);
-                    //System.out.println("receiveLedgerUpdates() 320");
+                    String lastBlockIdAfter = curMinerAgent.pl.getLastBlockID();
                     curMinerAgent.blocksBeingVerified.remove(msg.block);
-                    //System.out.println("receiveLedgerUpdates() 330");
                     // Remove blocks containing any of the transactions from the appended block
                     ArrayList<Block> blocksToRemove = new ArrayList<>();
                     curMinerAgent.blocksBeingVerified.getList()
                             .forEach(block-> block.getTransactions().forEach(trans->{
                         if (msg.block.getTransactions().contains(trans))
                         {
-                            //System.out.println("receiveLedgerUpdates() 400");
                             blocksToRemove.add(block);
                         }
                     }));
-                    blocksToRemove.forEach(bl-> curMinerAgent.blocksBeingVerified.remove(bl));
+                    blocksToRemove.forEach(curMinerAgent.blocksBeingVerified::remove);
                 });
             }
         });
@@ -92,7 +83,7 @@ public class MinerAgent extends WalletAgent {
     public static int getIndexOfMin(BlockList data) {
         if (data.getList().size()==1) return 0;
         String min = "ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ";  //TODO: Add to Globals. Replace with Ethereum actual constant
-        int index = -1;
+        int index = 0; // -1;
         for (int i = 0; i < data.size(); i++) {
             String f = data.getList().get(i).getBlockId();
             if(f.compareTo(min)<0){
@@ -104,32 +95,27 @@ public class MinerAgent extends WalletAgent {
     }
 
     public static Action<MinerAgent> verifyCandidateBlocksAndWriteToLedger() {
-        //System.out.println("verifyCandidateBlocksAndWriteToLedger()");
         return Action.create(MinerAgent.class, curMA -> {
             BlockList bli = new BlockList();
             curMA.blocksBeingVerified.getList().stream()
-                    .filter(b->b.isBlockVerified())
+                    .filter(Block::isBlockVerified)
                     .filter(b->b.getVerifiers().contains(curMA))
                     .filter(b->b.previousBlockId.compareTo(curMA.pl.getLastBlockID())==0)
-                    .forEach(block -> {
-                        bli.append(block);
-                    });
+                    .forEach(bli::append);
 
             if (!bli.getList().isEmpty())
             {
-                System.out.println(bli.getList().size());
-                bli.getList().forEach(b->{System.out.println(b.getBlockId() + ", ");});
-                System.out.println(bli.getList().get(0));
-                //System.out.println("getIndexOfMin(bli)=" + getIndexOfMin(bli));
                 String minBlockId = bli.getList().get(getIndexOfMin(bli)).getBlockId();
                 Block b = bli.get(minBlockId);
                 curMA.pl.addBlock(b);
                 curMA.blocksBeingVerified.remove(b);
                 curMA.ptq.removeTransactionsOfBlock(b);
                 bli.remove(b);
-                bli.getList().forEach(bl->{bl.getTransactions().forEach(t->curMA.ptq.enqueueTransaction(t));});
+                //bli.getList().forEach(bl->{bl.getTransactions().forEach(curMA.ptq::enqueueTransaction);});    //???
                 curMA.getLinks(Links.MinerToMinerLink.class).send(Messages.broadcastBlockToLedgers.class,
                                 (message, link) -> message.block = b);
+                curMA.getLinks(Links.MinerToMarketLink.class).send(Messages.broadcastBlockToLedgers.class,
+                        (message, link) -> message.block = b);
 
             }
         });
@@ -140,7 +126,9 @@ public class MinerAgent extends WalletAgent {
         return Action.create(MinerAgent.class, currMA ->
                 {
                     currMA.gl.totalETHValueInMiners+=currMA.getBalance();
-                    currMA.gl.ledgerBlocks = currMA.gl.ledgerBlocks + "[" + currMA.walletAddress + " ($" + currMA.getBalance() + ") " + currMA.pl.getLedgerSize() + " blocks, Last:" + currMA.pl.getLastBlockIDShort() + "]";
+                    //String trans;
+                    //System.out.println("Miner Transactions @" + currMA.walletAddress + ": " + currMA.pl.toString2());
+                    currMA.gl.ledgerBlocks = currMA.gl.ledgerBlocks + "[" + currMA.walletAddress + " ($" + currMA.getBalance() + ") " + currMA.pl.getLedgerSize() + " blocks, Last:" + currMA.pl.getLastBlockIDShort() + ", branches:" + currMA.pl.getNumBranches() + "]";
                 });
     }
 
@@ -197,8 +185,7 @@ public class MinerAgent extends WalletAgent {
 
     public static Action<MinerAgent> createAndBroadcastCandidateBlocks() {
         return Action.create(MinerAgent.class, curMA -> {
-            int blockLength = Globals.blockLength;
-            if (curMA.ptq.getQueueLength()>=blockLength) {
+            if (curMA.ptq.getQueueLength()>=Globals.blockLength) {
                 Block bl = curMA.getBlockFromPTQ();
                 bl.previousBlockId=curMA.pl.getLastBlockID();       //!!!
                 if (bl.verifyTransactions())

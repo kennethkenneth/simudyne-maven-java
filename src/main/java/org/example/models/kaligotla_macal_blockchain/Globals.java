@@ -26,16 +26,14 @@ public final class Globals extends GlobalState
 
     public static final long seed = 645902744249333L;                                    //TODO: Use getPRNG() where possible
     public static SeededRandom random = SeededRandom.create(seed);
-    public static int blockLength = 5;  //number of transactions in a block from the PTQ that is used
+    public static int blockLength = 5;  //number of transactions in a block from the PTQ //TODO: Adapt to Ethereum
     public static int agentsToVerifyTrans = 5; // number of miner agents the network requires
-    // to verify a block. Also known as mu. (?)
-
-    // to form a candidate block of transactions to verify. 2000???
+    // to verify a block. Also known as mu. (?) //TODO: Adapt to Ethereum
 
     /*list of relative gas levels agents can choose from to indicate the priority of a transaction
     highGas = 10, mediumGas = 5, lowGas = 2 */
     @Input(name = "Gas Fee (Ξ)")
-    public int gasFee = 1;
+    public int gasFee = 20;
 
     @Input(name = "Delta T (sec.)")
     public double deltaT = 15; //the time increment between the Blockchain system updates (secs.)
@@ -63,16 +61,16 @@ public final class Globals extends GlobalState
     public int numInitialTransactions = 40;
 
     @Input(name = "min Transactions every 15 sec.")
-    public int minTransactions = 17; // 100,000 / 24 / 60 / 4
+    public int minTransactions = 2;//17; // 100,000 / 24 / 60 / 4
 
     @Input(name = "max Transactions every 15 sec.")
-    public int maxTransactions = 70; // 500,000 / 24 / 60 / 4
+    public int maxTransactions = 20;//70; // 500,000 / 24 / 60 / 4
 
-    @Input(name = "Initial Transactions")
-    public double probAgentTransacting = 0.8; // (float) (maxTransactions-minTransactions) / numAgents;
+    //@Input(name = "Initial Transactions")
+    //public double probAgentTransacting = 0.8; // (float) (maxTransactions-minTransactions) / numAgents;
 
     @Input(name = "Initial Market Agent balance (Ξ)")
-    public int initialMarketAgentBalance = 10000;
+    public int initialMarketAgentBalance = 1000;
 
     @Input(name = "Initial Miner Agent balance (Ξ)")
     public int initialMinerAgentBalance = 0;

@@ -9,6 +9,7 @@ public class Messages {
         public int gas;
         public int value;
         public long createTick;
+        public int transactionId;
     }
 
     public static class broadcastTransactionsToMinersPTQ extends Message.Empty{
@@ -17,6 +18,7 @@ public class Messages {
         public int to;
         public int value;
         public long createTick;
+        public int transactionId;
     }
 
     public static class broadcastBlockToLedgers extends Message.Empty {

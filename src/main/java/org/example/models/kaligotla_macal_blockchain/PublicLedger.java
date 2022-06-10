@@ -23,6 +23,10 @@ public class PublicLedger {
         bls.add(new LinkedList<>());
     }
 
+    public int getNumBranches()
+    {
+        return bls.size();
+    }
     public int getLedgerSize()
     {
         return bls.get(publicLedgerMainBranchId).size();
@@ -106,7 +110,7 @@ public class PublicLedger {
             return false;
         }
     }
-    public int getFinalBalanceFor(WalletAgent wa)
+    public int getBalance(WalletAgent wa)
     {
         AtomicInteger balance = new AtomicInteger();
         //Add Inflows
@@ -149,5 +153,21 @@ public class PublicLedger {
                     .getBlockId() + " (previous: " + b.get(publicLedgerMainBranchId).previousBlockId + "), "));
         });
         return strOutput.get();
+    }
+    public String toString2()
+    {
+        final String[] str = {""};
+        AtomicInteger j= new AtomicInteger();
+        for (int i =0;i<bls.get(publicLedgerMainBranchId).size(); i++)
+        {
+            bls.get(publicLedgerMainBranchId).get(i).getTransactions()
+                    .forEach(t->{
+                        str[0] = str[0].concat("\nTxId:" + t.transactionId + ", from:" + t.from + ", to:" + t.to +
+                                ", value:" + t.value + ", gas:" + t.gas + " t=" + t.tCreate + " (j=" + j.get() + ").");
+                        j.getAndIncrement();
+                    });
+        }
+
+        return str[0];
     }
 }

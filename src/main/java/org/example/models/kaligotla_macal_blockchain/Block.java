@@ -17,10 +17,7 @@ public class Block  {
     private boolean blockVerified;                  // TODO: This is not in the Ethereum standard
     private int totalGas;                           // TODO: This is not in the Ethereum standard
 
-    private Transaction cloneTransaction(Transaction t)
-    {
-        return new Transaction(t.tCreate, t.gas, t.value, t.from, t.to, t.transactionId);
-    }
+    private WalletAgent wa;                         // TODO: This is not in the Ethereum standard
 
     public Block cloneBlock(WalletAgent a)
     {
@@ -28,25 +25,29 @@ public class Block  {
         bl.blockId = blockId;
         bl.previousBlockId = previousBlockId;
         bl.totalGas = totalGas;
+        bl.wa = a;
         getVerifiers().forEach(bl::addVerifiers);
-        getTransactions().forEach(trans-> bl.appendTransaction(cloneTransaction(trans)));
+        getTransactions().forEach(trans-> bl.appendTransaction(trans.clone()));
         return bl;
     }
 
     public void appendTransaction(Transaction t)
     {
-        if (t != null)
+        if (t == null) return;
+        if (t.isVerified() && getSize()<Globals.blockLength && verifyTransactionIsBacked(t))
         {
-            if (t.isVerified() && getSize()<Globals.blockLength)
-            {
-                trans.add(t);
-                addGasToBlock(t.gas);
-            }
-            if (getSize()==Globals.blockLength)
-            {
-                setBlockId();
-            }
+            trans.add(t);
+            addGasToBlock(t.gas);
         }
+        if (getSize()==Globals.blockLength) setBlockId();
+    }
+
+    private boolean verifyTransactionIsBacked(Transaction t)
+    {
+        int wFrom = t.from;
+        int gas = t.gas;
+        int value = t.value;
+        return (wa.getBalanceFor(t.from)>=t.gas+t.value);    // TODO: This is not enough if
     }
 
     private void setBlockId(){
@@ -89,13 +90,12 @@ public class Block  {
 
     public Block(WalletAgent a)
     {
-        // origin = walletAddresses.get((int)random.uniform(0, walletAddresses.size()).sample());
-        // this.blockId = Integer.toString((int) a.getPrng().uniform(0, a.gl.maxBlockId).sample());
-        this.blockId = Integer.toString((int) a.gl.random.uniform(0, a.gl.maxBlockId).sample());
+        this.blockId = Integer.toString((int) Globals.random.uniform(0, Globals.maxBlockId).sample());
         trans = new ArrayList<>();
         verifiers = new ArrayList<>();
         blockVerified = false;
         totalGas=0;
+        wa = a;
     }
 
     public String getBlockId()
@@ -120,16 +120,13 @@ public class Block  {
 
     public void addVerifiers(MinerAgent miner)
     {
-        if (verifiers.size()<Globals.agentsToVerifyTrans)
+        if ((verifiers.size()<Globals.agentsToVerifyTrans)&&(!verifiers.contains(miner)))
         {
-            if (!verifiers.contains(miner))
+            verifiers.add(miner);
+            if (verifiers.size()==Globals.agentsToVerifyTrans)
             {
-                verifiers.add(miner);
+                blockVerified = true;
             }
-        }
-        if (verifiers.size()==Globals.agentsToVerifyTrans)
-        {
-            blockVerified = true;
         }
     }
 

@@ -3,7 +3,7 @@ package org.example.models.kaligotla_macal_blockchain;
 import java.util.ArrayList;
 
 public class BlockList{
-    private ArrayList<Block> blockList;
+    private final ArrayList<Block> blockList;
     BlockList(){
         blockList = new ArrayList<>();
     }

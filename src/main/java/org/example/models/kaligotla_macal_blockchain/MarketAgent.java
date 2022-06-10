@@ -29,7 +29,7 @@ public class MarketAgent extends WalletAgent{
                 }
                 currMA.gl.ledgerBlocks = currMA.gl.ledgerBlocks + "[" + currMA.walletAddress +
                         " ($" + currMA.getBalance() + ") " + currMA.pl.getLedgerSize() +
-                        " blocks, Last:" + currMA.pl.getLastBlockIDShort() +"]";
+                        " blocks, Last:" + currMA.pl.getLastBlockIDShort() + ", branches:" + currMA.pl.getNumBranches() + "]";
             });
     }
 
@@ -48,6 +48,7 @@ public class MarketAgent extends WalletAgent{
                                 message.to = msg.to;
                                 message.value = msg.value;
                                 message.createTick = msg.createTick;
+                                message.transactionId = msg.transactionId;
                             });
                 }
             }
@@ -64,7 +65,7 @@ public class MarketAgent extends WalletAgent{
             addresses.forEach(
                     wa-> trAL.add(new Transaction(0,0,curMA.gl.initialMarketAgentBalance,
                             curMA.gl.coinbaseAgent.walletAddress, wa,
-                            (int) curMA.gl.random.uniform(0, Globals.maxTransactionId).sample()))
+                            (int) Globals.random.uniform(0, Globals.maxTransactionId).sample()))
             );
             //Generate empty "padding" transactions to fill blocks
             System.out.println("trAL.size(): " + (trAL.size()));
@@ -75,11 +76,9 @@ public class MarketAgent extends WalletAgent{
             {
                 trAL.add(new Transaction(0,0,0,curMA.gl.coinbaseAgent.walletAddress,
                         curMA.gl.coinbaseAgent.walletAddress,
-                        //(int) curMA.getPrng().uniform(0,curMA.gl.maxTransactionId).sample()));
                         (int) Globals.random.uniform(0, Globals.maxTransactionId).sample()));
             }
             String lastBlockId=Globals.START_BLOCK_ID;
-            System.out.println("range: " + (trAL.size() / Globals.blockLength));
             for (int i=0; i<trAL.size() / Globals.blockLength ;i++)
             {
                 Block b = new Block(curMA);
@@ -90,7 +89,7 @@ public class MarketAgent extends WalletAgent{
                     b.appendTransaction(trAL.get(Globals.blockLength*i+j));
                 }
                 b.previousBlockId=lastBlockId;
-                boolean ab = curMA.pl.addBlock(b);
+                curMA.pl.addBlock(b);
                 lastBlockId=b.getBlockId();
                 curMA.getLinks(Links.MarketToMinerLink.class).send(Messages.broadcastBlockToLedgers.class,
                         (message, link) -> message.block = b);
@@ -112,11 +111,9 @@ public class MarketAgent extends WalletAgent{
             if (curMA.walletAddress!=wp.originWallet ||
                 curMA.walletAddress==curMA.gl.coinbaseAgent.walletAddress)  return;
             int gas = gl.gasFee; // (int) curMA.getPrng().uniform(0,gl.gasFee).sample();     // TODO: Improve
-            //int value = (int) curMA.getPrng().uniform(0,100).sample();                     // TODO: Improve
-            int value = (int) curMA.gl.random.uniform(0, 100).sample();                 // TODO: Improve
+            int value = (int) Globals.random.uniform(0, 100).sample();                 // TODO: Improve
             if (curMA.getBalance() > gas + value)
             {
-                //System.out.println("Sufficient funds");
                 curMA.getLinks(Links.MarketToMarketLink.class)
                 .send(Messages.candidateTransactionMessage.class, (message, link) -> {
                                 message.gas = gas;
@@ -124,6 +121,7 @@ public class MarketAgent extends WalletAgent{
                                 message.to = wp.destinationWallet;
                                 message.value = value;
                                 message.createTick = tick;
+                                message.transactionId = (int) Globals.random.uniform(0, Globals.maxTransactionId).sample();
                             });
             } else {
                 System.out.println("Insufficient funds");
@@ -133,20 +131,19 @@ public class MarketAgent extends WalletAgent{
 
     public static Action<MarketAgent> generateRandomTransactions(long tick) {
         return Action.create(MarketAgent.class, curMA ->
-                {
-                    ArrayList<WalletPair> wpa = new ArrayList<>();
-                    ArrayList<Integer> walletAddresses = (ArrayList<Integer>)curMA.gl.marketWalletAddresses.clone();
-                    Integer from, to;
-                    for (int i=0;i<20;i++)
-                    {
-                        from = walletAddresses.get((int)curMA.gl.random.uniform(0, walletAddresses.size()).sample());
-                        walletAddresses.remove(from);
-                        to = walletAddresses.get((int)curMA.gl.random.uniform(0, walletAddresses.size()).sample());
-                        walletAddresses.remove(to);
-                        WalletPair wp = new WalletPair(from,to);
-                        wpa.add(wp);
-                    }
-                    generateTransactions(curMA,tick, wpa);
-                });
+        {
+            ArrayList<WalletPair> wpa = new ArrayList<>();
+            ArrayList<Integer> walletAddresses = (ArrayList<Integer>)curMA.gl.marketWalletAddresses.clone();
+            Integer from, to;
+            for (int i=0;i<(int)Globals.random.uniform(curMA.gl.minTransactions, curMA.gl.maxTransactions).sample();i++)
+            {
+                from = walletAddresses.get((int)Globals.random.uniform(0, walletAddresses.size()).sample());
+                walletAddresses.remove(from);
+                to = walletAddresses.get((int)Globals.random.uniform(0, walletAddresses.size()).sample());
+                walletAddresses.remove(to);
+                wpa.add(new WalletPair(from,to));
+            }
+            generateTransactions(curMA,tick, wpa);
+        });
     }
 }
