@@ -23,6 +23,11 @@ public class PublicLedger {
         bls.add(new LinkedList<>());
     }
 
+    public Block getBlock(int branchId, int i)
+    {
+        return bls.get(branchId).get(i);
+    }
+
     public int getNumBranches()
     {
         return bls.size();
@@ -112,53 +117,68 @@ public class PublicLedger {
     }
     public int getBalance(WalletAgent wa)
     {
+        System.out.println("Calculating getBalance() at wa=" + wa.walletAddress);
+        if (bls.size()>0)
+        {
+            if (bls.get(publicLedgerMainBranchId).size()>0)
+            {
+                System.out.println("There are " + bls.get(publicLedgerMainBranchId).size() + " blocks");
+                for (int i =0;i<bls.get(publicLedgerMainBranchId).size();i++)
+                {
+                    System.out.println("Block " + i);
+                    for (int j=0;j<bls.get(publicLedgerMainBranchId).get(i).getTransactions().size();j++)
+                    {
+                        System.out.println("Transaction " + i + ": " + bls.get(publicLedgerMainBranchId)
+                                .get(i).getTransactions().get(j));
+                    }
+                }
+            }
+        }
         AtomicInteger balance = new AtomicInteger();
         //Add Inflows
-        bls.stream()
-            .filter(b->b.size()>0)
+        bls.get(publicLedgerMainBranchId).stream()
             .forEach(b->{
-            b.get(publicLedgerMainBranchId).getTransactions().stream()
+            b.getTransactions().stream()
                 .filter(t->t.to==wa.walletAddress)
                 .forEach(t->{
                     balance.addAndGet(t.value);
                 });});
         //Subtract Outflows
-        bls.stream()
-            .filter(b->b.size()>0)
+        bls.get(publicLedgerMainBranchId).stream()
             .forEach(b->{
-            b.get(publicLedgerMainBranchId).getTransactions().stream()
+            b.getTransactions().stream()
                     .filter(t->t.from==wa.walletAddress)
                     .forEach(t->{
                         balance.addAndGet(-t.value);
                     });});
         //Add Gas Inflows
-        bls.stream()
-            .filter(b->b.size()>0)
+        bls.get(publicLedgerMainBranchId).stream()
             .forEach(b->{
-            b.get(publicLedgerMainBranchId).getVerifiers().stream()
+            b.getVerifiers().stream()
                     .filter(v->v.walletAddress==wa.walletAddress)
                     .forEach(t->{
-                        balance.addAndGet(b.get(publicLedgerMainBranchId).getTotalGas()/Globals.blockLength);
+                        balance.addAndGet(b.getTotalGas()/Globals.blockLength);
                     });});
         //Subtract Gas Outflows
-        bls.stream()
-            .filter(b->b.size()>0)
+        bls.get(publicLedgerMainBranchId).stream()
             .forEach(b->{
-            b.get(publicLedgerMainBranchId).getTransactions().stream()
+            b.getTransactions().stream()
                     .filter(t->t.from==wa.walletAddress)
                     .forEach(t->{
-                        balance.addAndGet(-b.get(publicLedgerMainBranchId).getTotalGas());
+                        balance.addAndGet(-b.getTotalGas());
                     });});
         return balance.get();
     }
 
     public String toString()
     {
-        final AtomicReference<String> strOutput = new AtomicReference<>("Public Ledger: ");
+        final AtomicReference<String> strOutput = new AtomicReference<>("Public Ledger: (size:" + bls.size() + ") --" );
         bls.forEach(b->{
-            strOutput.set(strOutput.get()
-                    .concat("block_" + b.get(publicLedgerMainBranchId)
-                    .getBlockId() + " (previous: " + b.get(publicLedgerMainBranchId).previousBlockId + "), "));
+            if (b.size()>0)
+            {
+                strOutput.set(strOutput.get().concat("block_" + b.get(publicLedgerMainBranchId)
+                .getBlockId() + " (previous: " + b.get(publicLedgerMainBranchId).previousBlockId + "), "));
+            }
         });
         return strOutput.get();
     }

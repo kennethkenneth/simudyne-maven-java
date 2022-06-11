@@ -31,9 +31,9 @@ public class MinerAgent extends WalletAgent {
     }
     public static Action<MinerAgent> addCandidateTransactionsToPTQ() {
         return Action.create(MinerAgent.class, curMinerAgent -> {
-            if (curMinerAgent.hasMessagesOfType(Messages.broadcastTransactionsToMinersPTQ.class))
+            if (curMinerAgent.hasMessagesOfType(Messages.msgTransaction.class))
             {
-                curMinerAgent.getMessagesOfType(Messages.broadcastTransactionsToMinersPTQ.class).forEach(msg->
+                curMinerAgent.getMessagesOfType(Messages.msgTransaction.class).forEach(msg->
                     curMinerAgent.ptq.enqueueTransaction(new Transaction(msg.createTick, msg.gas, msg.value,
                             msg.from, msg.to, msg.transactionId)));
             }
@@ -62,13 +62,13 @@ public class MinerAgent extends WalletAgent {
     public static Action<MinerAgent> updateMinerLedger()
     {
         return Action.create(MinerAgent.class, curMinerAgent -> {
-            if (curMinerAgent.hasMessagesOfType(Messages.broadcastBlockToLedgers.class))
+            System.out.println("updateMinerLedger() 100");
+            if (curMinerAgent.hasMessagesOfType(Messages.msgBlock.class))
             {
-                curMinerAgent.getMessagesOfType(Messages.broadcastBlockToLedgers.class).forEach(msg->{
+                System.out.println("updateMinerLedger() 200");
+                curMinerAgent.getMessagesOfType(Messages.msgBlock.class).forEach(msg->{
                     curMinerAgent.ptq.removeTransactionsOfBlock(msg.block);
-                    String lastBlockIdBefore = curMinerAgent.pl.getLastBlockID();
                     curMinerAgent.pl.addBlock(msg.block);
-                    String lastBlockIdAfter = curMinerAgent.pl.getLastBlockID();
                     curMinerAgent.blocksBeingVerified.remove(msg.block);
                     // Remove blocks containing any of the transactions from the appended block
                     ArrayList<Block> blocksToRemove = new ArrayList<>();
@@ -117,9 +117,9 @@ public class MinerAgent extends WalletAgent {
                 curMA.ptq.removeTransactionsOfBlock(b);
                 bli.remove(b);
                 //bli.getList().forEach(bl->{bl.getTransactions().forEach(curMA.ptq::enqueueTransaction);});    //???
-                curMA.getLinks(Links.MinerToMinerLink.class).send(Messages.broadcastBlockToLedgers.class,
+                curMA.getLinks(Links.MinerToMinerLink.class).send(Messages.msgBlock.class,
                                 (message, link) -> message.block = b);
-                curMA.getLinks(Links.MinerToMarketLink.class).send(Messages.broadcastBlockToLedgers.class,
+                curMA.getLinks(Links.MinerToMarketLink.class).send(Messages.msgBlock.class,
                         (message, link) -> message.block = b);
 
             }
@@ -165,8 +165,8 @@ public class MinerAgent extends WalletAgent {
 
     public static Action<MinerAgent> receiveCandidateBlocks(){
         return Action.create(MinerAgent.class, curMA -> {
-            if (curMA.hasMessagesOfType(Messages.broadcastCandidateBlockToMiners.class)) {
-                  curMA.getMessagesOfType(Messages.broadcastCandidateBlockToMiners.class)
+            if (curMA.hasMessagesOfType(Messages.msgCandidateBlock.class)) {
+                  curMA.getMessagesOfType(Messages.msgCandidateBlock.class)
                     .forEach(msg->{
                       BlockList bli = curMA.blocksBeingVerified;
                       if (!bli.contains(msg.block.getBlockId()))
@@ -201,7 +201,7 @@ public class MinerAgent extends WalletAgent {
             }
             System.out.println("Number of blocks being verified:" + curMA.blocksBeingVerified.size());
             curMA.blocksBeingVerified.getList().forEach(bl->
-                    curMA.getLinks(Links.MinerToMinerLink.class).send(Messages.broadcastCandidateBlockToMiners.class,
+                    curMA.getLinks(Links.MinerToMinerLink.class).send(Messages.msgCandidateBlock.class,
                             (message, link) -> message.block = bl));
         });
     }

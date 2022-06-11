@@ -10,6 +10,7 @@ public class WalletAgent extends Agent<Globals> {
 
     WalletAgent()
     {
+        System.out.println("WalletAgent() constructor");
         pl =  new PublicLedger();
     }
     public static Action<WalletAgent> assignWalletAddress()
@@ -29,22 +30,4 @@ public class WalletAgent extends Agent<Globals> {
         //return pl.getBalance(wa);
         return 1000000000;   //TODO: To be implemented
     }
-
-    public static Action<WalletAgent> updateLedger()
-    {
-        return Action.create(WalletAgent.class, curWalletAgent -> {
-            if (curWalletAgent.hasMessagesOfType(Messages.broadcastBlockToLedgers.class))
-            {
-                curWalletAgent.getMessagesOfType(Messages.broadcastBlockToLedgers.class).forEach(msg->{
-                    System.out.println("Adding Block " + msg.block.getBlockId() + " (prev: "
-                            + msg.block.previousBlockId + ").....into Wallet: " + curWalletAgent.walletAddress);
-                    msg.block.getTransactions().forEach(t->{
-                        System.out.println("   " + t.toString());
-                    });
-                    curWalletAgent.pl.addBlock(msg.block);
-                });
-            }
-        });
-    }
-
 }

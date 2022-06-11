@@ -3,6 +3,7 @@ package org.example.models.kaligotla_macal_blockchain;
 import simudyne.core.abm.AgentBasedModel;
 import simudyne.core.abm.Group;
 import simudyne.core.abm.Sequence;
+import simudyne.core.abm.Split;
 import simudyne.core.annotations.ModelSettings;
 import simudyne.core.annotations.Variable;
 
@@ -31,32 +32,28 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
         createLongAccumulator("energyConsumedPerVerifiedTransaction", "Energy Consumed per Verified Transaction");
         registerAgentTypes(MarketAgent.class, MinerAgent.class);
         registerLinkTypes(Links.MarketToMinerLink.class);
-        registerLinkTypes(Links.MarketToMarketLink.class);
+        registerLinkTypes(Links.MarketToMarketLink.class); //TODO: Deprecate
         registerLinkTypes(Links.MinerToMinerLink.class);
         registerLinkTypes(Links.MinerToMarketLink.class);
         registerLinkTypes(Links.MinerToBlockLink.class);
-        registerMessageTypes(Messages.candidateTransactionMessage.class);
+        registerMessageTypes(Messages.msgTransaction.class);
+        registerMessageTypes(Messages.msgBlock.class);
+        registerMessageTypes(Messages.msgCandidateBlock.class);
     }
 
     @Override
     public void setup() {
         gl = getGlobals();
         Group<MinerAgent> minerAgentGroup = generateGroup(MinerAgent.class,
-                (int) (gl.numAgents*getGlobals().fracMiners),
-                minerAgent -> {
-                                //minerAgent.pl = new PublicLedger();
-                                minerAgent.gl=gl;
-                                }
-        );
+                (int) (gl.numAgents*gl.fracMiners),
+                minerAgent -> minerAgent.gl=gl);
         Group<MarketAgent> marketAgentGroup = generateGroup(MarketAgent.class,
                 (int) (gl.numAgents*(1-gl.fracMiners)),
-                marketAgent -> {
-                                    //marketAgent.pl = new PublicLedger();
-                                    marketAgent.gl=gl;});
-        marketAgentGroup.fullyConnected(marketAgentGroup,   Links.MarketToMarketLink.class);
-        marketAgentGroup.fullyConnected(minerAgentGroup,    Links.MarketToMinerLink.class);
-        minerAgentGroup.fullyConnected(marketAgentGroup,    Links.MinerToMarketLink.class);
-        minerAgentGroup.fullyConnected(minerAgentGroup,     Links.MinerToMinerLink.class);
+                marketAgent -> marketAgent.gl=gl);
+        marketAgentGroup.fullyConnected(minerAgentGroup, Links.MarketToMinerLink.class);
+        minerAgentGroup.fullyConnected(marketAgentGroup, Links.MinerToMarketLink.class);
+        minerAgentGroup.fullyConnected(minerAgentGroup, Links.MinerToMinerLink.class);
+        marketAgentGroup.fullyConnected(marketAgentGroup, Links.MarketToMarketLink.class);
         super.setup();
     }
 
@@ -65,8 +62,8 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
         String setBold = "\033[1m";
         String setNormal = "\033[0m";
         long tick = getContext().getTick();
-        System.out.println("TICK: " + tick);
-        System.out.println("============");
+        System.out.println(setBold + "TICK: " + tick + setNormal);
+        System.out.println(setBold + "============" + setNormal);
         if (tick == 0) {
             run(WalletAgent.assignWalletAddress());
             run(MarketAgent.fillUpMarketWalletAddressArray());
@@ -77,17 +74,17 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
             System.out.println("Coin Base Address: " + gl.coinbaseAgent.walletAddress);
             System.out.println("Coin Base Agent: "   + gl.coinbaseAgent);
             run(Sequence.create(MarketAgent.sendMoneyFromCoinbaseToMarkets(),
-                                WalletAgent.updateLedger()));
+                                Split.create(MinerAgent.updateMinerLedger(),
+                                            MarketAgent.updateMarketLedger())));
         }
         else {
-            run(Sequence.create(MarketAgent.generateRandomTransactions(tick),
-                Sequence.create(MarketAgent.broadcastTransactionsToMiners(),
-                                MinerAgent.addCandidateTransactionsToPTQ())));
+            run(Sequence.create(MarketAgent.generateRandomTransactions(tick)),
+                Sequence.create(MinerAgent.addCandidateTransactionsToPTQ()));
             run(Sequence.create(MinerAgent.createAndBroadcastCandidateBlocks(),
                                 MinerAgent.receiveCandidateBlocks()));
             run(Sequence.create(MinerAgent.verifyCandidateBlocksAndWriteToLedger(),
                                 MinerAgent.updateMinerLedger(),
-                                MarketAgent.updateLedger()));
+                                MarketAgent.updateMarketLedger()));
             gl.ledgerBlocks = setBold + "\nMiner Agents" + setNormal + " (" +  gl.minerWalletAddresses.size() + "): ";
             run(MinerAgent.sumETHValue());
             gl.ledgerBlocks = gl.ledgerBlocks + setBold + "\n\nMarket Agents" + setNormal + " (" +  gl.marketWalletAddresses.size() + "): ";

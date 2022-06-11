@@ -1,11 +1,10 @@
 package org.example.models.kaligotla_macal_blockchain;
 
-import org.example.models.kaligotla_macal_blockchain.Utils;
 import org.junit.jupiter.api.*;
-import simudyne.core.abm.Action;
-import simudyne.core.abm.Sequence;
+import simudyne.core.abm.Group;
 import simudyne.core.abm.testkit.TestKit;
-import simudyne.core.abm.testkit.TestResult;
+import simudyne.core.abm.Group;
+import simudyne.core.abm.AgentBasedModel;
 
 import java.util.ArrayList;
 
@@ -19,7 +18,13 @@ public class BlockchainTests {
     public static void init(){
         System.out.println("Running Blockchain Model Tests..");
         testKit = TestKit.create(Globals.class);
-         gl= testKit.getGlobals();
+        gl= testKit.getGlobals();
+        testKit.registerLinkTypes(Links.MarketToMinerLink.class);
+    }
+    @BeforeAll
+    public static void setup()
+    {
+
     }
     @Test
     public void minersHaveZeroInitialBalance() {
@@ -59,33 +64,32 @@ public class BlockchainTests {
         MarketAgent marketAgent3 = testKit.addAgent(MarketAgent.class, marketAgent -> marketAgent.gl = gl);
         MarketAgent marketAgent4 = testKit.addAgent(MarketAgent.class, marketAgent -> marketAgent.gl = gl);
         MinerAgent minerAgent1 =  testKit.addAgent(MinerAgent.class, minerAgent -> minerAgent.gl = gl);
-        //MarketAgent marketAgent5 = testKit.addAgent(MarketAgent.class, marketAgent -> marketAgent.gl = gl);
+        BlockchainModel bm = new BlockchainModel();
         marketAgentCoinBase.walletAddress = 0;
-        marketAgent1.walletAddress = 100;
-        marketAgent2.walletAddress = 200;
-        marketAgent3.walletAddress = 300;
-        marketAgent4.walletAddress = 400;
-        //marketAgent5.walletAddress = 500;
-        minerAgent1.walletAddress = 600;
+        marketAgent1.walletAddress = 1;
+        marketAgent2.walletAddress = 2;
+        marketAgent3.walletAddress = 3;
+        marketAgent4.walletAddress = 4;
+        minerAgent1.walletAddress = 5;
         gl.coinbaseAgent = marketAgentCoinBase;
         gl.marketWalletAddresses = new Utils.AddressAgentMap();
         testKit.testAction(marketAgent1,MarketAgent.fillUpMarketWalletAddressArray());
         testKit.testAction(marketAgent2,MarketAgent.fillUpMarketWalletAddressArray());
         testKit.testAction(marketAgent3,MarketAgent.fillUpMarketWalletAddressArray());
         testKit.testAction(marketAgent4,MarketAgent.fillUpMarketWalletAddressArray());
-        testKit.testAction(marketAgentCoinBase, MarketAgent.sendMoneyFromCoinbaseToMarkets());/*
-        testKit.testAction(marketAgentCoinBase, MarketAgent.broadcastTransactionsToMiners());*/
+        testKit.testAction(marketAgentCoinBase, MarketAgent.sendMoneyFromCoinbaseToMarkets());
+        System.out.println("marketAgentCoinBase gl:" + marketAgentCoinBase.pl.toString());
+        System.out.println("1st block:" + marketAgentCoinBase.pl.getBlock(0,0).toString());
+        testKit.send(Messages.msgBlock.class,m->{m.block=marketAgentCoinBase.pl.getBlock(0,0);}).to(minerAgent1);
+        testKit.send(Messages.msgBlock.class,m->{m.block=marketAgentCoinBase.pl.getBlock(0,0);}).to(marketAgent1);
+        testKit.send(Messages.msgBlock.class,m->{m.block=marketAgentCoinBase.pl.getBlock(0,0);}).to(marketAgent2);
         testKit.testAction(minerAgent1,MinerAgent.updateMinerLedger());
-        //testKit.testAction(minerAgent1,MinerAgent.addCandidateTransactionsToPTQ());
-        /*testKit.testAction(minerAgent1,MinerAgent.createAndBroadcastCandidateBlocks());
-        testKit.testAction(minerAgent1,MinerAgent.receiveCandidateBlocks());*/
-        System.out.println("Miner PTQ Size:" + minerAgent1.getPTQ().getQueueLength());
-        testKit.testAction(minerAgent1,MinerAgent.verifyCandidateBlocksAndWriteToLedger());
-        testKit.testAction(minerAgent1,MinerAgent.updateMinerLedger());
-        testKit.testAction(marketAgent2,MarketAgent.updateLedger());
+        testKit.testAction(marketAgent2,MarketAgent.updateMarketLedger());
         System.out.println("gl:" + gl.marketWalletAddresses.getAddresses());
         System.out.println("gl:" + gl.marketWalletAddresses.size());
-        System.out.println("gl:" + minerAgent1.pl.toString());
-        assertNotEquals(0, marketAgent2.getBalance());
+        System.out.println("minerAgent1 gl:" + minerAgent1.pl.toString());
+        System.out.println("minerAgent1 gl 1st Block:" + minerAgent1.pl.getBlock(0,0).toString());
+        assertEquals(gl.initialMarketAgentBalance, marketAgent2.getBalance());
+        assertEquals(-4*gl.initialMarketAgentBalance, marketAgentCoinBase.getBalance());
     }
 }
