@@ -24,6 +24,11 @@ public class MinerAgent extends WalletAgent {
         then the candidate block gets added to the Public Ledger.
     */
 
+    public MinerAgent()
+    {
+        super();
+        pl = new PublicLedger();
+    }
     public static Action<MinerAgent> addCandidateTransactionsToPTQ() {
         return Action.create(MinerAgent.class, curMinerAgent -> {
             if (curMinerAgent.hasMessagesOfType(Messages.broadcastTransactionsToMinersPTQ.class))
@@ -31,7 +36,6 @@ public class MinerAgent extends WalletAgent {
                 curMinerAgent.getMessagesOfType(Messages.broadcastTransactionsToMinersPTQ.class).forEach(msg->
                     curMinerAgent.ptq.enqueueTransaction(new Transaction(msg.createTick, msg.gas, msg.value,
                             msg.from, msg.to, msg.transactionId)));
-                            //(int) curMinerAgent.gl.random.uniform(0, Globals.maxTransactionId).sample()))
             }
         });
     }
@@ -51,7 +55,8 @@ public class MinerAgent extends WalletAgent {
 
     public static Action<MinerAgent> fillUpMinerWalletAddressArray()
     {
-        return Action.create(MinerAgent.class, curMA -> curMA.gl.minerWalletAddresses.add(curMA.walletAddress));
+        return Action.create(MinerAgent.class, curMA -> curMA.gl.minerWalletAddresses
+                .add(new Utils.AddressAgentPair(curMA.walletAddress, curMA)));
     }
 
     public static Action<MinerAgent> updateMinerLedger()
@@ -199,5 +204,9 @@ public class MinerAgent extends WalletAgent {
                     curMA.getLinks(Links.MinerToMinerLink.class).send(Messages.broadcastCandidateBlockToMiners.class,
                             (message, link) -> message.block = bl));
         });
+    }
+    public TransactionListPTQ getPTQ()
+    {
+        return ptq;
     }
 }

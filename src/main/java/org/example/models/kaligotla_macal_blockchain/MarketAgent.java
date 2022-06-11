@@ -1,9 +1,14 @@
 package org.example.models.kaligotla_macal_blockchain;
-import org.example.models.kaligotla_macal_blockchain.BlockchainModel.WalletPair;
 import simudyne.core.abm.Action;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MarketAgent extends WalletAgent{
+    public MarketAgent()
+    {
+        super();
+        pl = new PublicLedger();
+    }
     public static Action<MarketAgent> assignCoinbaseAddress()
     {
         return Action.create(MarketAgent.class, currMA->{
@@ -60,18 +65,19 @@ public class MarketAgent extends WalletAgent{
         return Action.create(MarketAgent.class, curMA -> {
             ArrayList<Transaction> trAL = new ArrayList<>();
             if (curMA.walletAddress != curMA.gl.coinbaseAgent.walletAddress) return;
-            ArrayList<Integer> addresses =curMA.gl.marketWalletAddresses;
+            ArrayList<Integer> addresses =curMA.gl.marketWalletAddresses.getAddresses();
             addresses.remove(Integer.valueOf(curMA.gl.coinbaseAgent.walletAddress));
-            addresses.forEach(
-                    wa-> trAL.add(new Transaction(0,0,curMA.gl.initialMarketAgentBalance,
-                            curMA.gl.coinbaseAgent.walletAddress, wa,
+            addresses.
+                    forEach(
+                    addressInt-> trAL.add(new Transaction(0,0,curMA.gl.initialMarketAgentBalance,
+                            curMA.gl.coinbaseAgent.walletAddress, addressInt,
                             (int) Globals.random.uniform(0, Globals.maxTransactionId).sample()))
             );
             //Generate empty "padding" transactions to fill blocks
             System.out.println("trAL.size(): " + (trAL.size()));
             System.out.println("curMA.gl.blockLength:" + Globals.blockLength);
-            System.out.println("numPaddingTrans: " + (Globals.blockLength - trAL.size() % Globals.blockLength));
-            int numPaddingTrans = Globals.blockLength - trAL.size() % Globals.blockLength;
+            System.out.println("numPaddingTrans: " + ((Globals.blockLength - (trAL.size() % Globals.blockLength))) % Globals.blockLength);
+            int numPaddingTrans = ((Globals.blockLength - (trAL.size() % Globals.blockLength))) % Globals.blockLength;
             for (int i =0; i<numPaddingTrans; i++)
             {
                 trAL.add(new Transaction(0,0,0,curMA.gl.coinbaseAgent.walletAddress,
@@ -84,8 +90,11 @@ public class MarketAgent extends WalletAgent{
                 Block b = new Block(curMA);
                 for (int j=0;j<Globals.blockLength;j++)
                 {
-                    System.out.println("n=" + (Globals.blockLength*i+j));
-                    System.out.println("trId=" + trAL.get(Globals.blockLength*i+j).transactionId);
+                    System.out.println("n=" + (Globals.blockLength*i+j) +
+                            ", trId=" + trAL.get(Globals.blockLength*i+j).transactionId +
+                            ", trFrom=" + trAL.get(Globals.blockLength*i+j).from +
+                            ", trTo=" + trAL.get(Globals.blockLength*i+j).to +
+                            ", trValue=" + trAL.get(Globals.blockLength*i+j).value);
                     b.appendTransaction(trAL.get(Globals.blockLength*i+j));
                 }
                 b.previousBlockId=lastBlockId;
@@ -101,13 +110,16 @@ public class MarketAgent extends WalletAgent{
 
     public static Action<MarketAgent> fillUpMarketWalletAddressArray()
     {
-        return Action.create(MarketAgent.class, curMA -> curMA.gl.marketWalletAddresses.add(curMA.walletAddress));
+        System.out.println("We are sort of here: fillUpMarketWalletAddressArray");
+        return Action.create(MarketAgent.class, curMA -> curMA.gl.marketWalletAddresses
+                .add(new Utils.AddressAgentPair(curMA.walletAddress, curMA)));
     }
 
-    public static void generateTransactions(MarketAgent curMA, long tick, ArrayList<WalletPair> wpa)
+    public static boolean generateTransactions(MarketAgent curMA, long tick, ArrayList<Utils.AddressPair> aps)
     {
         Globals gl = curMA.getGlobals();
-        wpa.forEach(wp->{
+        AtomicBoolean retValue = new AtomicBoolean(false);
+        aps.forEach(wp->{
             if (curMA.walletAddress!=wp.originWallet ||
                 curMA.walletAddress==curMA.gl.coinbaseAgent.walletAddress)  return;
             int gas = gl.gasFee; // (int) curMA.getPrng().uniform(0,gl.gasFee).sample();     // TODO: Improve
@@ -125,15 +137,17 @@ public class MarketAgent extends WalletAgent{
                             });
             } else {
                 System.out.println("Insufficient funds");
+                retValue.set(true);
             }
         });
+        return retValue.get();
     }
 
     public static Action<MarketAgent> generateRandomTransactions(long tick) {
         return Action.create(MarketAgent.class, curMA ->
         {
-            ArrayList<WalletPair> wpa = new ArrayList<>();
-            ArrayList<Integer> walletAddresses = (ArrayList<Integer>)curMA.gl.marketWalletAddresses.clone();
+            ArrayList<Utils.AddressPair> wpa = new ArrayList<>();
+            ArrayList<Integer> walletAddresses = (ArrayList<Integer>) (curMA.gl.marketWalletAddresses.getAddresses()).clone();
             Integer from, to;
             for (int i=0;i<(int)Globals.random.uniform(curMA.gl.minTransactions, curMA.gl.maxTransactions).sample();i++)
             {
@@ -141,7 +155,7 @@ public class MarketAgent extends WalletAgent{
                 walletAddresses.remove(from);
                 to = walletAddresses.get((int)Globals.random.uniform(0, walletAddresses.size()).sample());
                 walletAddresses.remove(to);
-                wpa.add(new WalletPair(from,to));
+                wpa.add(new Utils.AddressPair(from,to));
             }
             generateTransactions(curMA,tick, wpa);
         });

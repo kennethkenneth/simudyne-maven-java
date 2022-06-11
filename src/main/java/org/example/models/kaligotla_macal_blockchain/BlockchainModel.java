@@ -6,6 +6,8 @@ import simudyne.core.abm.Sequence;
 import simudyne.core.annotations.ModelSettings;
 import simudyne.core.annotations.Variable;
 
+import java.util.ArrayList;
+
 /*
     Implementation of "A GENERALIZED AGENT BASED FRAMEWORK FOR MODELING A BLOCKCHAIN SYSTEM"
     Chaitanya Kaligotla, Charles M Macal (2018)
@@ -42,14 +44,14 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
         Group<MinerAgent> minerAgentGroup = generateGroup(MinerAgent.class,
                 (int) (gl.numAgents*getGlobals().fracMiners),
                 minerAgent -> {
-                                minerAgent.pl = new PublicLedger();
+                                //minerAgent.pl = new PublicLedger();
                                 minerAgent.gl=gl;
                                 }
         );
         Group<MarketAgent> marketAgentGroup = generateGroup(MarketAgent.class,
                 (int) (gl.numAgents*(1-gl.fracMiners)),
                 marketAgent -> {
-                                    marketAgent.pl = new PublicLedger();
+                                    //marketAgent.pl = new PublicLedger();
                                     marketAgent.gl=gl;});
         marketAgentGroup.fullyConnected(marketAgentGroup,   Links.MarketToMarketLink.class);
         marketAgentGroup.fullyConnected(minerAgentGroup,    Links.MarketToMinerLink.class);
@@ -69,10 +71,9 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
             run(WalletAgent.assignWalletAddress());
             run(MarketAgent.fillUpMarketWalletAddressArray());
             run(MinerAgent.fillUpMinerWalletAddressArray());
-            System.out.println("Market Wallet Addresses (" + gl.marketWalletAddresses.size() + "): " + gl.marketWalletAddresses);
-            System.out.println("Miner Wallet Addresses (" + gl.minerWalletAddresses.size() + "): " + gl.minerWalletAddresses);
-            //Coin Base is just another Market Wallet
-            run(MarketAgent.assignCoinbaseAddress());
+            System.out.println("Market Addresses (" + gl.marketWalletAddresses.size() + "): " + gl.marketWalletAddresses);
+            System.out.println("Miner Addresses (" + gl.minerWalletAddresses.size() + "): " + gl.minerWalletAddresses);
+            run(MarketAgent.assignCoinbaseAddress());   //Coin Base is just another Market Wallet
             System.out.println("Coin Base Address: " + gl.coinbaseAgent.walletAddress);
             System.out.println("Coin Base Agent: "   + gl.coinbaseAgent);
             run(Sequence.create(MarketAgent.sendMoneyFromCoinbaseToMarkets(),
@@ -104,16 +105,5 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
         ledgerLength=gl.ledgerLength;
         gl.totalETHValueInMiners=0;
         gl.totalETHValueInMarkets=0;
-    }
-
-    static class WalletPair
-    {
-        public int originWallet;
-        public int destinationWallet;
-        WalletPair(int o, int d)
-        {
-            originWallet = o;
-            destinationWallet = d;
-        }
     }
 }

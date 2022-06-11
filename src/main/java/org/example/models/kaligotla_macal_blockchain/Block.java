@@ -17,7 +17,7 @@ public class Block  {
     private boolean blockVerified;                  // TODO: This is not in the Ethereum standard
     private int totalGas;                           // TODO: This is not in the Ethereum standard
 
-    private WalletAgent wa;                         // TODO: This is not in the Ethereum standard
+    private WalletAgent walletAgent;                         // TODO: This is not in the Ethereum standard
 
     public Block cloneBlock(WalletAgent a)
     {
@@ -25,7 +25,7 @@ public class Block  {
         bl.blockId = blockId;
         bl.previousBlockId = previousBlockId;
         bl.totalGas = totalGas;
-        bl.wa = a;
+        bl.walletAgent = a;
         getVerifiers().forEach(bl::addVerifiers);
         getTransactions().forEach(trans-> bl.appendTransaction(trans.clone()));
         return bl;
@@ -44,10 +44,8 @@ public class Block  {
 
     private boolean verifyTransactionIsBacked(Transaction t)
     {
-        int wFrom = t.from;
-        int gas = t.gas;
-        int value = t.value;
-        return (wa.getBalanceFor(t.from)>=t.gas+t.value);    // TODO: This is not enough if
+        // TODO: Take into consideration nonce and blocks containing multiple transactions from same agent
+        return (walletAgent.getBalanceFor(t.from)>=t.gas+t.value);
     }
 
     private void setBlockId(){
@@ -95,7 +93,7 @@ public class Block  {
         verifiers = new ArrayList<>();
         blockVerified = false;
         totalGas=0;
-        wa = a;
+        walletAgent = a;
     }
 
     public String getBlockId()

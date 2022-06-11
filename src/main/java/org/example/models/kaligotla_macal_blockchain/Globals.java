@@ -4,8 +4,6 @@ import simudyne.core.abm.GlobalState;
 import simudyne.core.annotations.Input;
 import simudyne.core.rng.SeededRandom;
 
-import java.util.ArrayList;
-
 public final class Globals extends GlobalState
 {
     int totalETHValueInMiners = 0;
@@ -17,8 +15,8 @@ public final class Globals extends GlobalState
     public static final int maxWalletId = 1000000000;                   //TODO: Replace with actual Ethereum constants
     public static final String START_BLOCK_ID = "START";
 
-    ArrayList<Integer> marketWalletAddresses = new ArrayList<>();
-    ArrayList<Integer> minerWalletAddresses = new ArrayList<>();
+    Utils.AddressAgentMap marketWalletAddresses = new Utils.AddressAgentMap();
+    Utils.AddressAgentMap minerWalletAddresses = new Utils.AddressAgentMap();
 
     MarketAgent coinbaseAgent;
 

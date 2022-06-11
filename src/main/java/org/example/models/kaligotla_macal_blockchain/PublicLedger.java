@@ -114,28 +114,36 @@ public class PublicLedger {
     {
         AtomicInteger balance = new AtomicInteger();
         //Add Inflows
-        bls.forEach(b->{
+        bls.stream()
+            .filter(b->b.size()>0)
+            .forEach(b->{
             b.get(publicLedgerMainBranchId).getTransactions().stream()
                 .filter(t->t.to==wa.walletAddress)
                 .forEach(t->{
                     balance.addAndGet(t.value);
                 });});
         //Subtract Outflows
-        bls.forEach(b->{
+        bls.stream()
+            .filter(b->b.size()>0)
+            .forEach(b->{
             b.get(publicLedgerMainBranchId).getTransactions().stream()
                     .filter(t->t.from==wa.walletAddress)
                     .forEach(t->{
                         balance.addAndGet(-t.value);
                     });});
         //Add Gas Inflows
-        bls.forEach(b->{
+        bls.stream()
+            .filter(b->b.size()>0)
+            .forEach(b->{
             b.get(publicLedgerMainBranchId).getVerifiers().stream()
                     .filter(v->v.walletAddress==wa.walletAddress)
                     .forEach(t->{
                         balance.addAndGet(b.get(publicLedgerMainBranchId).getTotalGas()/Globals.blockLength);
                     });});
         //Subtract Gas Outflows
-        bls.forEach(b->{
+        bls.stream()
+            .filter(b->b.size()>0)
+            .forEach(b->{
             b.get(publicLedgerMainBranchId).getTransactions().stream()
                     .filter(t->t.from==wa.walletAddress)
                     .forEach(t->{
