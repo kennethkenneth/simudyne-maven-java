@@ -4,6 +4,7 @@ import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static java.lang.System.exit;
@@ -15,8 +16,6 @@ public class Block  {
     private final ArrayList<Transaction> trans;
     private final ArrayList<MinerAgent> verifiers;  //TODO: This is not in the Ethereum standard
     private boolean blockVerified;                  // TODO: This is not in the Ethereum standard
-    private int totalGas;                           // TODO: This is not in the Ethereum standard
-
     private WalletAgent walletAgent;                         // TODO: This is not in the Ethereum standard
 
     public Block cloneBlock(WalletAgent a)
@@ -24,7 +23,6 @@ public class Block  {
         Block bl = new Block(a);
         bl.blockId = blockId;
         bl.previousBlockId = previousBlockId;
-        bl.totalGas = totalGas;
         bl.walletAgent = a;
         getVerifiers().forEach(bl::addVerifiers);
         getTransactions().forEach(trans-> bl.appendTransaction(trans.clone()));
@@ -36,16 +34,36 @@ public class Block  {
         if (t == null) return;
         if (t.isVerified() && getSize()<Globals.blockLength && verifyTransactionIsBacked(t))
         {
+            //System.out.println("It was backed");
             trans.add(t);
-            addGasToBlock(t.gas);
+            if (getSize()==Globals.blockLength) setBlockId();
         }
-        if (getSize()==Globals.blockLength) setBlockId();
+        else {
+            //System.out.println("It was NOT backed");
+        }
     }
 
     private boolean verifyTransactionIsBacked(Transaction t)
     {
+        //System.out.println("verifyTransactionIsBacked...From:" + t.from);
+        if (t.from == walletAgent.gl.coinbaseAgent.walletAddress) return true;
+        WalletAgent wa1 = walletAgent.gl.marketWalletAddresses.getByAddress(t.from);
+        WalletAgent wa2 = walletAgent.gl.minerWalletAddresses.getByAddress(t.from);
         // TODO: Take into consideration nonce and blocks containing multiple transactions from same agent
-        return (walletAgent.getBalanceFor(t.from)>=t.gas+t.value);
+        if (wa1 instanceof MarketAgent)
+        {
+            //System.out.println("walletAgent: " + walletAgent  + " with address " + walletAgent.walletAddress + " is considered to be a MARKET");
+            return (((MarketAgent)wa1).getBalanceFor(t.from)>=t.gas+t.value);
+        }
+        else if (wa2 instanceof MinerAgent) {
+            //System.out.println("walletAgent: " + walletAgent  + " with address " + walletAgent.walletAddress + " is considered to be a miner");
+            return (((MinerAgent) wa2).getBalanceFor(t.from) >= t.gas + t.value);
+        }
+        else
+        {
+            //System.out.println("We don't know what the class is for:" + walletAgent + ".");
+            return false;
+        }
     }
 
     private void setBlockId(){
@@ -83,7 +101,9 @@ public class Block  {
 
     public int getTotalGas()
     {
-        return totalGas;
+        AtomicInteger totalGas = new AtomicInteger();
+        trans.forEach(t-> totalGas.addAndGet(t.gas));
+        return totalGas.get();
     }
 
     public Block(WalletAgent a)
@@ -92,18 +112,12 @@ public class Block  {
         trans = new ArrayList<>();
         verifiers = new ArrayList<>();
         blockVerified = false;
-        totalGas=0;
         walletAgent = a;
     }
 
     public String getBlockId()
     {
         return this.blockId;
-    }
-
-    public void addGasToBlock(int totalGas)
-    {
-        this.totalGas+= totalGas;
     }
 
     public int getSize()
@@ -142,7 +156,8 @@ public class Block  {
     {
         AtomicReference<String> str = new AtomicReference<>("[Block: " + blockId + " (" + trans.size() + " transactions). ");
         trans.forEach(t->{
-            str.set(str.get().concat("{T id: " +t.transactionId+ " sender:" + t.from + " receiver:" + t.to + " value:$" + t.value + "}, "));
+            str.set(str.get().concat("\n{T id: " +t.transactionId+ " sender:" + t.from + " receiver:" + t.to +
+                    " value:$" + t.value + " gas:$" + t.gas + "}, "));
         });
         return str.get() + ", previousBlockId:" + previousBlockId + "]";
     }

@@ -117,19 +117,19 @@ public class PublicLedger {
     }
     public int getBalance(WalletAgent wa)
     {
-        System.out.println("Calculating getBalance() at wa=" + wa.walletAddress);
+        //System.out.println("At the PL, Calculating getBalance() at wa=" + wa.walletAddress);
         if (bls.size()>0)
         {
             if (bls.get(publicLedgerMainBranchId).size()>0)
             {
-                System.out.println("There are " + bls.get(publicLedgerMainBranchId).size() + " blocks");
+                //System.out.println("There are " + bls.get(publicLedgerMainBranchId).size() + " blocks");
                 for (int i =0;i<bls.get(publicLedgerMainBranchId).size();i++)
                 {
-                    System.out.println("Block " + i);
+                    //System.out.println("Block " + i + " has transactions:" + bls.get(publicLedgerMainBranchId).get(i).getTransactions().size());
                     for (int j=0;j<bls.get(publicLedgerMainBranchId).get(i).getTransactions().size();j++)
                     {
-                        System.out.println("Transaction " + i + ": " + bls.get(publicLedgerMainBranchId)
-                                .get(i).getTransactions().get(j));
+                       /* System.out.println("Transaction " + i + ": " + bls.get(publicLedgerMainBranchId)
+                                .get(i).getTransactions().get(j));*/
                     }
                 }
             }
@@ -158,6 +158,7 @@ public class PublicLedger {
                     .filter(v->v.walletAddress==wa.walletAddress)
                     .forEach(t->{
                         balance.addAndGet(b.getTotalGas()/Globals.blockLength);
+                        //balance.addAndGet(t.gas);
                     });});
         //Subtract Gas Outflows
         bls.get(publicLedgerMainBranchId).stream()
@@ -165,19 +166,21 @@ public class PublicLedger {
             b.getTransactions().stream()
                     .filter(t->t.from==wa.walletAddress)
                     .forEach(t->{
-                        balance.addAndGet(-b.getTotalGas());
+                        balance.addAndGet(-t.gas);
                     });});
+        //System.out.println("At the PL, Calculating getBalance() at wa=" + wa.walletAddress + ". Balance = " + balance.get());
         return balance.get();
     }
 
     public String toString()
     {
-        final AtomicReference<String> strOutput = new AtomicReference<>("Public Ledger: (size:" + bls.size() + ") --" );
-        bls.forEach(b->{
-            if (b.size()>0)
+        final AtomicReference<String> strOutput = new AtomicReference<>("Public Ledger: (size:" + bls.get(publicLedgerMainBranchId).size() + ") --" );
+        bls.get(publicLedgerMainBranchId).forEach(b->{
+            if (b.getTransactions().size()>0)
             {
-                strOutput.set(strOutput.get().concat("block_" + b.get(publicLedgerMainBranchId)
-                .getBlockId() + " (previous: " + b.get(publicLedgerMainBranchId).previousBlockId + "), "));
+                strOutput.set(strOutput.get().concat("\nblock_" + b
+                .getBlockId() + ", gas: " + b.getTotalGas() +
+                " (previous: " + b.previousBlockId + "), " + b.toString()));
             }
         });
         return strOutput.get();

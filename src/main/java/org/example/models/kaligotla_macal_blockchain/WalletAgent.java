@@ -10,7 +10,6 @@ public class WalletAgent extends Agent<Globals> {
 
     WalletAgent()
     {
-        System.out.println("WalletAgent() constructor");
         pl =  new PublicLedger();
     }
     public static Action<WalletAgent> assignWalletAddress()
@@ -22,12 +21,7 @@ public class WalletAgent extends Agent<Globals> {
 
     public int getBalance()
     {
+        //System.out.println("(WalletAgent) getBalance()...");
         return pl.getBalance(this);
-    }
-
-    public int getBalanceFor(int walletAddress)
-    {
-        //return pl.getBalance(wa);
-        return 1000000000;   //TODO: To be implemented
     }
 }

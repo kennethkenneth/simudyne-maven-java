@@ -68,8 +68,10 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
             run(WalletAgent.assignWalletAddress());
             run(MarketAgent.fillUpMarketWalletAddressArray());
             run(MinerAgent.fillUpMinerWalletAddressArray());
-            System.out.println("Market Addresses (" + gl.marketWalletAddresses.size() + "): " + gl.marketWalletAddresses);
-            System.out.println("Miner Addresses (" + gl.minerWalletAddresses.size() + "): " + gl.minerWalletAddresses);
+            System.out.println("Market Addresses (" + gl.marketWalletAddresses.size() + "): " + gl.marketWalletAddresses.getAddresses());
+            //System.out.println("Market Agents (" + gl.marketWalletAddresses.size() + "): " + gl.marketWalletAddresses.getAgents());
+            System.out.println("Miner Addresses (" + gl.minerWalletAddresses.size() + "): " + gl.minerWalletAddresses.getAddresses());
+            //System.out.println("Miner Agents (" + gl.minerWalletAddresses.size() + "): " + gl.minerWalletAddresses.getAgents());
             run(MarketAgent.assignCoinbaseAddress());   //Coin Base is just another Market Wallet
             System.out.println("Coin Base Address: " + gl.coinbaseAgent.walletAddress);
             System.out.println("Coin Base Agent: "   + gl.coinbaseAgent);
@@ -83,14 +85,16 @@ public class BlockchainModel extends AgentBasedModel<Globals> {
             run(Sequence.create(MinerAgent.createAndBroadcastCandidateBlocks(),
                                 MinerAgent.receiveCandidateBlocks()));
             run(Sequence.create(MinerAgent.verifyCandidateBlocksAndWriteToLedger(),
-                                MinerAgent.updateMinerLedger(),
-                                MarketAgent.updateMarketLedger()));
+                                Split.create(MinerAgent.updateMinerLedger(),
+                                MarketAgent.updateMarketLedger())));
             gl.ledgerBlocks = setBold + "\nMiner Agents" + setNormal + " (" +  gl.minerWalletAddresses.size() + "): ";
             run(MinerAgent.sumETHValue());
             gl.ledgerBlocks = gl.ledgerBlocks + setBold + "\n\nMarket Agents" + setNormal + " (" +  gl.marketWalletAddresses.size() + "): ";
             run(MarketAgent.sumETHValue());
             run(MinerAgent.calculateQueueLength());
             run(MinerAgent.calculateLedgerLength());
+            run(MinerAgent.displayBlocks());
+            //run(MarketAgent.displayBlocks());
         }
         if (getContext().getTick() == gl.simTime) {
         }

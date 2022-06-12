@@ -62,10 +62,10 @@ public class MinerAgent extends WalletAgent {
     public static Action<MinerAgent> updateMinerLedger()
     {
         return Action.create(MinerAgent.class, curMinerAgent -> {
-            System.out.println("updateMinerLedger() 100");
+            //System.out.println("updateMinerLedger() 100");
             if (curMinerAgent.hasMessagesOfType(Messages.msgBlock.class))
             {
-                System.out.println("updateMinerLedger() 200");
+                //System.out.println("updateMinerLedger() 200");
                 curMinerAgent.getMessagesOfType(Messages.msgBlock.class).forEach(msg->{
                     curMinerAgent.ptq.removeTransactionsOfBlock(msg.block);
                     curMinerAgent.pl.addBlock(msg.block);
@@ -208,5 +208,20 @@ public class MinerAgent extends WalletAgent {
     public TransactionListPTQ getPTQ()
     {
         return ptq;
+    }
+    public int getBalanceFor(int walletAddress)
+    {
+        System.out.println("Miner Agent address: " + walletAddress);
+        System.out.println("gl.minerWalletAddresses: " + gl.minerWalletAddresses);
+        WalletAgent ma = gl.minerWalletAddresses.getByAddress(walletAddress);
+        System.out.println("(MinerAgent) getBalanceFor " + ma + ".");
+        if (ma == null) return 0;
+        return pl.getBalance(gl.minerWalletAddresses.getByAddress(walletAddress));
+    }
+    public static Action<MinerAgent> displayBlocks(){
+        return Action.create(MinerAgent.class, curMA -> {
+            //System.out.println("displayBlocks(): " + curMA.walletAddress);
+            System.out.println("Ledger (@Miner Agent):" + curMA.pl.toString());
+        });
     }
 }

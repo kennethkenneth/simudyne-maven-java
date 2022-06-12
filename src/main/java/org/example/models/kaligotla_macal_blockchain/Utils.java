@@ -46,6 +46,7 @@ public class Utils {
         }
         public WalletAgent getByAddress(int walletAddress)
         {
+            //System.out.println("getByAddress()...");
             Integer addressInt = walletAddress;
             return addressAgentMap.get(addressInt);
         }
@@ -61,6 +62,10 @@ public class Utils {
         public ArrayList<Integer> getAddresses()
         {
             return Lists.newArrayList(addressAgentMap.keySet());
+        }
+        public ArrayList<WalletAgent> getAgents()
+        {
+            return Lists.newArrayList(addressAgentMap.values());
         }
     }
 }

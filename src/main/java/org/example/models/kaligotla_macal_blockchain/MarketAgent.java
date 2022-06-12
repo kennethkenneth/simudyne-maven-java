@@ -45,6 +45,7 @@ public class MarketAgent extends WalletAgent{
             if (curMA.walletAddress != curMA.gl.coinbaseAgent.walletAddress) return;
             ArrayList<Integer> addresses =curMA.gl.marketWalletAddresses.getAddresses();
             addresses.remove(Integer.valueOf(curMA.gl.coinbaseAgent.walletAddress));
+            //System.out.println("We are going to send money to: " + addresses);
             addresses.
                     forEach(
                     addressInt-> trAL.add(new Transaction(0,0,curMA.gl.initialMarketAgentBalance,
@@ -52,9 +53,9 @@ public class MarketAgent extends WalletAgent{
                             (int) Globals.random.uniform(0, Globals.maxTransactionId).sample()))
             );
             //Generate empty "padding" transactions to fill blocks
-            System.out.println("trAL.size(): " + (trAL.size()));
-            System.out.println("curMA.gl.blockLength:" + Globals.blockLength);
-            System.out.println("numPaddingTrans: " + ((Globals.blockLength - (trAL.size() % Globals.blockLength))) % Globals.blockLength);
+            //System.out.println("trAL.size(): " + (trAL.size()));
+            //System.out.println("curMA.gl.blockLength:" + Globals.blockLength);
+            //System.out.println("numPaddingTrans: " + ((Globals.blockLength - (trAL.size() % Globals.blockLength))) % Globals.blockLength);
             int numPaddingTrans = ((Globals.blockLength - (trAL.size() % Globals.blockLength))) % Globals.blockLength;
             for (int i =0; i<numPaddingTrans; i++)
             {
@@ -68,11 +69,11 @@ public class MarketAgent extends WalletAgent{
                 Block b = new Block(curMA);
                 for (int j=0;j<Globals.blockLength;j++)
                 {
-                    System.out.println("n=" + (Globals.blockLength*i+j) +
+                    /*System.out.println("n=" + (Globals.blockLength*i+j) +
                             ", trId=" + trAL.get(Globals.blockLength*i+j).transactionId +
                             ", trFrom=" + trAL.get(Globals.blockLength*i+j).from +
                             ", trTo=" + trAL.get(Globals.blockLength*i+j).to +
-                            ", trValue=" + trAL.get(Globals.blockLength*i+j).value);
+                            ", trValue=" + trAL.get(Globals.blockLength*i+j).value);*/
                     b.appendTransaction(trAL.get(Globals.blockLength*i+j));
                 }
                 b.previousBlockId=lastBlockId;
@@ -89,22 +90,22 @@ public class MarketAgent extends WalletAgent{
 
     public static Action<MarketAgent> fillUpMarketWalletAddressArray()
     {
-        System.out.println("We are sort of here: fillUpMarketWalletAddressArray");
+        //System.out.println("We are sort of here: fillUpMarketWalletAddressArray");
         return Action.create(MarketAgent.class, curMA -> curMA.gl.marketWalletAddresses
                 .add(new Utils.AddressAgentPair(curMA.walletAddress, curMA)));
     }
 
     public static Action<MarketAgent> updateMarketLedger()
     {
-        System.out.println("updateMarketLedger  100");
+        //System.out.println("updateMarketLedger  100");
         return Action.create(MarketAgent.class, curMarketAgent -> {
             if (curMarketAgent.hasMessagesOfType(Messages.msgBlock.class))
             {
                 curMarketAgent.getMessagesOfType(Messages.msgBlock.class).forEach(msg->{
-                    System.out.println("Adding Block " + msg.block.getBlockId() + " (prev: "
-                            + msg.block.previousBlockId + ").....into Wallet: " + curMarketAgent.walletAddress);
+                    /*System.out.println("Adding Block " + msg.block.getBlockId() + " (prev: "
+                            + msg.block.previousBlockId + ").....into Wallet: " + curMarketAgent.walletAddress);*/
                     msg.block.getTransactions().forEach(t->{
-                        System.out.println("   " + t.toString());
+                        //System.out.println("   trans:" + t.toString());
                     });
                     curMarketAgent.pl.addBlock(msg.block);
                 });
@@ -120,10 +121,10 @@ public class MarketAgent extends WalletAgent{
                 curMA.walletAddress==curMA.gl.coinbaseAgent.walletAddress)  return;
             int gas = gl.gasFee; // (int) curMA.getPrng().uniform(0,gl.gasFee).sample();     // TODO: Improve
             int value = (int) Globals.random.uniform(0, 100).sample();                 // TODO: Improve
-            System.out.println("aaaa");
+            //System.out.println("aaaa");
             if (curMA == gl.coinbaseAgent || (curMA.getBalance() >= gas + value))            // Coin Base always has funds
             {
-                System.out.println("bbb");
+                //System.out.println("bbb");
                 curMA.getLinks(Links.MarketToMinerLink.class)
                         .send(Messages.msgTransaction.class, (message, link) -> {
                             message.gas = gas;
@@ -156,6 +157,24 @@ public class MarketAgent extends WalletAgent{
                 wpa.add(new Utils.AddressPair(from,to));
             }
             generateTransactions(curMA,tick, wpa);
+        });
+    }
+    public int getBalanceFor(int walletAddress)
+    {
+        //System.out.println("Market Agent address: " + walletAddress);
+        //System.out.println("gl.marketWalletAddresses:" + gl.marketWalletAddresses);
+        WalletAgent ma = gl.marketWalletAddresses.getByAddress(walletAddress);
+        //System.out.println("(MarketAgent) getBalanceFor..." + gl.marketWalletAddresses.getByAddress(walletAddress) + ".");
+        if (ma == null) return 0;
+        return pl.getBalance(ma);
+    }
+    public static Action<MarketAgent> displayBlocks(){
+        return Action.create(MarketAgent.class, curMA -> {
+            //System.out.println("displayBlocks(): " + curMA.walletAddress);
+            if (curMA.walletAddress==curMA.gl.coinbaseAgent.walletAddress)
+            {
+                System.out.println("Ledger (@Market Agent):" + curMA.pl.toString());
+            }
         });
     }
 }
